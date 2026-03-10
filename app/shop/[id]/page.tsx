@@ -42,7 +42,7 @@ export default function ProductDetailPage({ params }: Props) {
   // 4. Use the unwrapped 'id' to find the product
   const product = products.find((p) => p.id === id);
 
-  if (!product) {
+  if (!product) { 
     return (
       <div className="p-6 text-center text-red-500">
         Product not found
