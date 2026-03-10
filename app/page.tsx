@@ -82,7 +82,7 @@ export default async function HomePage() {
           {featuredProducts.map((product: Product) => (
             <ProductCard
               key={product.id}
-              id={product.id}
+              id={String(product.id)}
               name={product.name}
               team={product.team}
               price={product.price}
