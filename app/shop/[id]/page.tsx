@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, use } from "react"; // 1. Added 'use' hook
 import { useCart } from "@/src/context/CartContext";
 
 type Product = {
@@ -11,7 +11,6 @@ type Product = {
   description: string;
 };
 
-// Temporary example: in production, fetch from DB/API
 const products: Product[] = [
   {
     id: "1",
@@ -30,15 +29,18 @@ const products: Product[] = [
 ];
 
 interface Props {
-  params: { id: string };
+  params: Promise<{ id: string }>; // 2. Changed to Promise
 }
 
 export default function ProductDetailPage({ params }: Props) {
+  // 3. Unwrap the params using the 'use' hook
+  const { id } = use(params); 
+  
   const { addToCart } = useCart();
   const [quantity, setQuantity] = useState(1);
 
-  // Find product by ID
-  const product = products.find((p) => p.id === params.id);
+  // 4. Use the unwrapped 'id' to find the product
+  const product = products.find((p) => p.id === id);
 
   if (!product) {
     return (
