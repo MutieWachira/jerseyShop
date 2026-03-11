@@ -4,7 +4,7 @@ import { useCart } from "@/src/context/CartContext";
 
 export default function CartDrawer() {
 
-  const { cart, addToCart, removeFromCart, decreaseQuantity } = useCart();
+  const { cart, addToCart, removeFromCart, updateQuantity } = useCart();
 
   const total = (cart ?? []).reduce(
     (sum, item) => sum + item.price * item.quantity,
@@ -27,7 +27,7 @@ export default function CartDrawer() {
             <p className="font-semibold break-words">{item.name}</p>
             <div className="flex gap-2 mt-1 items-center">
               <button
-                onClick={() => decreaseQuantity(item.id)}
+                onClick={() => updateQuantity(item.id, item.size, item.version, item.quantity - 1)}
                 className="px-2 py-1 bg-slate-200 rounded hover:bg-slate-300"
               >
                 -
