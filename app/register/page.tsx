@@ -3,15 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 
-export default function LoginPage() {
-
+export default function RegisterPage() {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  function handleLogin(e: React.FormEvent) {
+  function handleRegister(e: React.FormEvent) {
     e.preventDefault();
 
     console.log({
+      name,
       email,
       password,
     });
@@ -19,14 +20,24 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-screen bg-white flex items-center justify-center">
-
       <div className="w-full max-w-md rounded-2xl border border-slate-200 p-8">
 
         <h1 className="text-2xl font-bold text-slate-900 mb-6 text-center">
-          Login
+          Create Account
         </h1>
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleRegister} className="space-y-4">
+
+          <div>
+            <label className="text-sm text-slate-600">Full Name</label>
+            <input
+              type="text"
+              required
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
+            />
+          </div>
 
           <div>
             <label className="text-sm text-slate-600">Email</label>
@@ -50,38 +61,26 @@ export default function LoginPage() {
             />
           </div>
 
-          {/* Forgot Password */}
-          <div className="text-right">
-            <Link
-              href="/reset-password"
-              className="text-sm text-slate-600 hover:underline"
-            >
-              Forgot Password?
-            </Link>
-          </div>
-
           <button
             type="submit"
             className="w-full rounded-xl bg-slate-900 py-3 text-white font-semibold hover:bg-slate-800"
           >
-            Login
+            Create Account
           </button>
 
         </form>
 
-        {/* Create account */}
         <p className="text-sm text-center text-slate-600 mt-6">
-          Don’t have an account?{" "}
+          Already have an account?{" "}
           <Link
-            href="/register"
+            href="/login"
             className="font-semibold text-slate-900 hover:underline"
           >
-            Create one
+            Login
           </Link>
         </p>
 
       </div>
-
     </main>
   );
 }
