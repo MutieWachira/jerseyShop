@@ -4,7 +4,7 @@ import ProductCard from "@/src/components/ProductCard";
 
 // 1. Define the shape of your product data for TypeScript
 interface Product {
-  id: string | number;
+  id: number;
   name: string;
   team: string;
   price: number;
@@ -82,7 +82,7 @@ export default async function HomePage() {
           {featuredProducts.map((product: Product) => (
             <ProductCard
               key={product.id}
-              id={String(product.id)}
+              id={product.id}
               name={product.name}
               team={product.team}
               price={product.price}
