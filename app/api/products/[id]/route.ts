@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 // Define the type for params as a Promise
 type RouteContext = {
-    params: Promise<{ id: string }>;
+    params: Promise<{ id: number }>;
 };
 
 export async function GET(request: Request, { params }: RouteContext) {
