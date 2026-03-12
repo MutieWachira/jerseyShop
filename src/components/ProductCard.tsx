@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useCart } from "@/src/context/CartContext";
 
 type ProductCardProps = {
-  id: string;
+  id: number;
   name: string;
   team: string;
   price: number;

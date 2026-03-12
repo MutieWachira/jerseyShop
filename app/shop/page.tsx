@@ -3,7 +3,7 @@ import { prisma } from "@/src/lib/prisma";
 import Link from "next/link";
 
 type Product = {
-  id: string;
+  id: number;
   name: string;
   team: string;
   price: number;
