@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 // FIX: Params in the URL are ALWAYS strings by default in Next.js
 type RouteContext = {
-    params: Promise<{ id: string }>; 
+    params: Promise<{ id: number }>; 
 };
 
 export async function GET(request: Request, { params }: RouteContext) {
