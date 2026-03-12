@@ -1,17 +1,19 @@
 import { prisma } from "@/src/lib/prisma";
 import { NextResponse } from "next/server";
 
-// Define the type for params as a Promise
+// FIX: Params in the URL are ALWAYS strings by default in Next.js
 type RouteContext = {
-    params: Promise<{ id: number }>;
+    params: Promise<{ id: string }>; 
 };
 
 export async function GET(request: Request, { params }: RouteContext) {
     // 1. Await the params
-    const { id } = await params;
+    const resolvedParams = await params;
+    // 2. Convert string ID to number for Prisma
+    const id = Number(resolvedParams.id);
 
     const product = await prisma.product.findUnique({
-        where: { id: id } // Use the awaited id
+        where: { id } 
     });
 
     if (!product) {
@@ -22,12 +24,12 @@ export async function GET(request: Request, { params }: RouteContext) {
 }
 
 export async function PUT(request: Request, { params }: RouteContext) {
-    // 1. Await the params
-    const { id } = await params;
+    const resolvedParams = await params;
+    const id = Number(resolvedParams.id);
     const body = await request.json();
 
     const updatedProduct = await prisma.product.update({
-        where: { id: id },
+        where: { id },
         data: body
     });
 
@@ -35,11 +37,11 @@ export async function PUT(request: Request, { params }: RouteContext) {
 }
 
 export async function DELETE(request: Request, { params }: RouteContext) {
-    // 1. Await the params
-    const { id } = await params;
+    const resolvedParams = await params;
+    const id = Number(resolvedParams.id);
 
     await prisma.product.delete({
-        where: { id: id }
+        where: { id }
     });
 
     return NextResponse.json({ message: "Product deleted successfully" });
