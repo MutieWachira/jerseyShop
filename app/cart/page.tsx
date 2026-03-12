@@ -92,7 +92,7 @@ export default function CartPage() {
 
                     <button
                       onClick={() =>
-                        updateQuantity(item.id, item.size, item.version, item.quantity - 1)
+                        updateQuantity(String(item.id), item.size, item.version, item.quantity - 1)
                       }
                       className="h-8 w-8 rounded-md text-slate-500 border border-slate-500 hover:bg-slate-100"
                     >
@@ -105,7 +105,7 @@ export default function CartPage() {
 
                     <button
                       onClick={() =>
-                        updateQuantity(item.id, item.size, item.version, item.quantity + 1)
+                        updateQuantity(String(item.id), item.size, item.version, item.quantity + 1)
                       }
                       className="h-8 w-8 rounded-md text-slate-500 border border-slate-500 hover:bg-slate-100"
                     >
