@@ -5,11 +5,13 @@ import ProductCard from "@/src/components/ProductCard";
 export const dynamic = 'force-dynamic';
 // 1. Define the shape of your product data for TypeScript
 interface Product {
-  id: number;
+    id: number;
   name: string;
   team: string;
   price: number;
-  description?: string | null;
+  image: string; // Add this!
+  description: string; // Match schema (it's not optional in prisma)
+  categoryId: string;
 }
 
 export default async function HomePage() {
