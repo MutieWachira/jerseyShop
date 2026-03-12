@@ -3,7 +3,7 @@ import { prisma } from "@/src/lib/prisma";
 import ProductDetailClient from "@/src/components/ProductDetailClient";
 
 interface Props {
-  params: Promise<{ id: string }>;
+  params: Promise<{ id: number }>;
 }
 
 export default async function ProductDetailPage({ params }: Props) {
