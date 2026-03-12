@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getFeaturedProducts } from "@/src/lib/products";
 import ProductCard from "@/src/components/ProductCard";
 
+export const dynamic = 'force-dynamic';
 // 1. Define the shape of your product data for TypeScript
 interface Product {
   id: number;
@@ -12,6 +13,8 @@ interface Product {
 }
 
 export default async function HomePage() {
+  
+
   // TypeScript will now know that featuredProducts is an array of Products
   const featuredProducts: Product[] = await getFeaturedProducts();
 
