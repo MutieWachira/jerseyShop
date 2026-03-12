@@ -1,36 +1,223 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-
 }
-model Product{
-  id  String @id@default(cuid())
-  name  String
-  team  String
-  price Int
-  imageUrl String?
-  description String?
+
+//////////////////////////
+// ENUMS
+//////////////////////////
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum Size {
+  XS
+  S
+  M
+  L
+  XL
+  XXL
+}
+
+enum KitVersion {
+  FAN
+  PLAYER
+}
+
+//////////////////////////
+// USER
+//////////////////////////
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  password      String
+  role          Role      @default(USER)
+  createdAt     DateTime  @default(now())
+
+  cartItems CartItem[]
+  orders    Order[]
+  reviews   Review[]
+}
+
+//////////////////////////
+// CATEGORY
+//////////////////////////
+
+model Category {
+  id   String @id @default(cuid())
+  name String @unique
+
+  products Product[]
+}
+
+//////////////////////////
+// PRODUCT
+//////////////////////////
+
+model Product {
+  id          Int    @id @default(autoincrement())
+  name        String
+  description String
+  price       Float
+  image       String
+  team        String
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
-  variants Variant[]
+  variants   ProductVariant[]
+  reviews    Review[]
+  orderItems OrderItem[]
+
+  @@index([team])
+  @@index([categoryId])
 }
 
-model Variant{
-  id String @id @default(cuid())
-  size String
-  stock Int @default(0)
-  productID String
-  product Product @relation(fields: [productID], references: [id], onDelete: Cascade)
+//////////////////////////
+// PRODUCT VARIANTS
+//////////////////////////
 
-  @@unique([productID, size]) 
+model ProductVariant {
+  id        String @id @default(cuid())
+  productId Int
+
+  size    Size
+  version KitVersion
+  stock   Int
+
+  product Product @relation(fields: [productId], references: [id])
+
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  @@unique([productId, size, version])
+}
+
+//////////////////////////
+// CART
+//////////////////////////
+
+model CartItem {
+  id String @id @default(cuid())
+
+  userId    String
+  variantId String
+  quantity  Int
+
+  user    User           @relation(fields: [userId], references: [id])
+  variant ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@index([userId])
+}
+
+//////////////////////////
+// ORDERS
+//////////////////////////
+
+model Order {
+  id        String      @id @default(cuid())
+  userId    String
+  total     Float
+  status    OrderStatus @default(PENDING)
+  createdAt DateTime    @default(now())
+
+  user  User        @relation(fields: [userId], references: [id])
+  items OrderItem[]
+
+  @@index([userId])
+}
+
+//////////////////////////
+// ORDER ITEMS
+//////////////////////////
+
+model OrderItem {
+  id        Int    @id @default(autoincrement())
+  orderId   String
+  productId Int
+  variantId String
+
+  quantity Int
+  price    Float
+
+  order   Order          @relation(fields: [orderId], references: [id])
+  product Product        @relation(fields: [productId], references: [id])
+  variant ProductVariant @relation(fields: [variantId], references: [id])
+}
+
+//////////////////////////
+// REVIEWS
+//////////////////////////
+
+model Review {
+  id String @id @default(cuid())
+
+  userId    String
+  productId Int
+
+  rating  Int
+  comment String
+
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([userId, productId])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
 }
