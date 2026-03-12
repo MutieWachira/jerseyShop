@@ -16,7 +16,7 @@ type CartContextType = {
   cart: CartItem[];
   addToCart: (item: CartItem) => void;
   removeFromCart: (id: number, size?: string, version?: string) => void;
-  updateQuantity: (id: string, size: string | undefined, version: string | undefined, quantity: number) => void;
+  updateQuantity: (id: number, size: string | undefined, version: string | undefined, quantity: number) => void;
 };
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -64,7 +64,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }
 
   function updateQuantity(
-    id: string,
+    id: number,
     size: string | undefined,
     version: string | undefined,
     quantity: number

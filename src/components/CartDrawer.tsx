@@ -27,7 +27,7 @@ export default function CartDrawer() {
             <p className="font-semibold break-words">{item.name}</p>
             <div className="flex gap-2 mt-1 items-center">
               <button
-                onClick={() => updateQuantity(String(item.id), item.size, item.version, item.quantity - 1)}
+                onClick={() => updateQuantity(item.id, item.size, item.version, item.quantity - 1)}
                 className="px-2 py-1 bg-slate-200 rounded hover:bg-slate-300"
               >
                 -
