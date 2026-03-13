@@ -42,7 +42,7 @@ export default function ProductCard({
       <div className="mt-4">
         <h3 className="text-base font-extrabold text-slate-900">{name}</h3>
         <p className="mt-1 text-sm text-slate-600">
-          {description ?? "Premium supporters edition jersey."}
+          {description = "Premium supporters edition jersey."}
         </p>
         <div className="mt-4 flex items-center justify-between">
           <span className="text-lg font-extrabold text-slate-900">Ksh {price}</span>
