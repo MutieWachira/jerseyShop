@@ -5,11 +5,13 @@ import Link from "next/link";
 import { useCart } from "@/src/context/CartContext";
 
 type ProductCardProps = {
-  id: number;
+    id: number;
   name: string;
   team: string;
   price: number;
-  description?: string;
+  image: string; // Add this!
+  description: string; // Match schema (it's not optional in prisma)
+  categoryId: string;
 };
 
 export default function ProductCard({
@@ -18,6 +20,8 @@ export default function ProductCard({
   team,
   price,
   description,
+  image,
+  categoryId
 }: ProductCardProps) {
   const { addToCart } = useCart();
 

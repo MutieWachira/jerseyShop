@@ -91,6 +91,8 @@ export default async function HomePage() {
               team={product.team}
               price={product.price}
               description={product.description ?? undefined}
+              image={product.image}
+              categoryId={product.categoryId}
             />
           ))}
           {featuredProducts.length === 0 && (
