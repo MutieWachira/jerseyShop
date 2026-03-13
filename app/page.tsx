@@ -90,7 +90,7 @@ export default async function HomePage() {
               name={product.name}
               team={product.team}
               price={product.price}
-              description={product.description ?? undefined}
+              description={product.description}
               image={product.image}
               categoryId={product.categoryId}
             />
