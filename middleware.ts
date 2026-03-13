@@ -1,48 +1,55 @@
-import { getToken } from "next-auth/jwt";
+import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 
-const secret = process.env.NEXTAUTH_SECRET;
+export default withAuth(
+  function middleware(req) {
+    const token = req.nextauth.token;
+    const { pathname } = req.nextUrl;
 
-export async function middleware(req: NextRequest) {
-  const token = await getToken({ req, secret });
+    // If user is logged in and tries to access login/signup
+    if (token && (pathname.startsWith("/login") || pathname.startsWith("/signup"))) {
+      if (token.role === "ADMIN") {
+        return NextResponse.redirect(new URL("/admin", req.url));
+      }
+      return NextResponse.redirect(new URL("/shop", req.url));
+    }
 
-  const url = req.nextUrl.clone();
+    // Protect checkout
+    if (pathname.startsWith("/checkout")) {
+      if (!token) {
+        return NextResponse.redirect(new URL("/login", req.url));
+      }
+    }
 
-  // Allow public pages
-  if (
-    url.pathname.startsWith("/login") ||
-    url.pathname.startsWith("/register") ||
-    url.pathname.startsWith("/reset-password") ||
-    url.pathname.startsWith("/api/auth")
-  ) {
+    // Protect orders
+    if (pathname.startsWith("/orders")) {
+      if (!token) {
+        return NextResponse.redirect(new URL("/login", req.url));
+      }
+    }
+
+    // Protect admin routes
+    if (pathname.startsWith("/admin")) {
+      if (!token || token.role !== "ADMIN") {
+        return NextResponse.redirect(new URL("/", req.url));
+      }
+    }
+
     return NextResponse.next();
+  },
+  {
+    callbacks: {
+      authorized: () => true,
+    },
   }
+);
 
-  if (!token) {
-    // Not logged in, redirect to login
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
-  }
-
-  // Role-based redirection
-  if (token.role === "ADMIN") {
-    if (!url.pathname.startsWith("/admin")) {
-      url.pathname = "/admin";
-      return NextResponse.redirect(url);
-    }
-  } else {
-    // Regular user
-    if (!url.pathname.startsWith("/shop")) {
-      url.pathname = "/shop";
-      return NextResponse.redirect(url);
-    }
-  }
-
-  return NextResponse.next();
-}
-
-// Apply to all routes
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/login",
+    "/signup",
+    "/checkout/:path*",
+    "/orders/:path*",
+    "/admin/:path*"
+  ],
 };
