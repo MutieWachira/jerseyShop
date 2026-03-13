@@ -7,7 +7,9 @@ type Product = {
   name: string;
   team: string;
   price: number;
-  description: string | null;
+  description: string;
+  image: string;
+  categoryId: string;
 };
 
 type Props = {
@@ -167,7 +169,9 @@ export default async function ShopPage({ searchParams }: Props) {
               name={product.name}
               team={product.team}
               price={product.price}
-              description={product.description ?? undefined}
+              description={product.description}
+              image={product.image}
+              categoryId={product.categoryId}
             />
           ))}
         </div>
