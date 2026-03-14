@@ -3,38 +3,44 @@
 import { useSession } from "next-auth/react";
 import DashboardCard from "./components/DashboardCard";
 import RecentOrders from "./components/RecentOrders";
-import AdminSidebar from "./components/AdminSidebar"; // Import your new component
+import AdminSidebar from "./components/AdminSidebar"; 
 import { Bell } from "lucide-react";
 
 export default function AdminDashboard() {
   const { data: session } = useSession();
 
   return (
-    <div className="flex min-h-screen bg-[#F1F5F9]">
-      {/* 1. Sidebar - Now using your official component */}
+    <div className="flex min-h-screen bg-[#F8FAFC]">
+      {/* 1. Sidebar - Fixed on desktop, toggleable on mobile */}
       <AdminSidebar />
 
-      {/* 2. Main Content Area - Added ml-64 to push content past the fixed sidebar */}
-      <main className="flex-1 flex flex-col lg:ml-64">
+      {/* 2. Main Content Area */}
+      {/* lg:ml-64 matches sidebar width. pt-16 accounts for mobile header */}
+      <main className="flex-1 flex flex-col lg:ml-64 pt-16 lg:pt-0 min-w-0">
         
-        {/* Top Navbar */}
-        <header className="sticky top-0 z-30 h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-8">
-          <div className="text-sm font-medium text-slate-500">
+        {/* Top Navbar - Sticky and responsive */}
+        <header className="sticky top-0 z-20 h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 flex items-center justify-between px-4 md:px-8">
+          <div className="text-sm font-medium text-slate-500 hidden sm:block">
             Welcome back, <span className="text-slate-900 font-bold">{session?.user?.name || "Admin"}</span>
           </div>
           
-          <div className="flex items-center gap-4">
+          {/* On mobile, welcome text is hidden to save space */}
+          <div className="sm:hidden text-xs font-bold text-slate-400 uppercase tracking-widest">
+            Dashboard
+          </div>
+          
+          <div className="flex items-center gap-2 md:gap-4">
             <button className="p-2 text-slate-400 hover:text-slate-900 transition relative">
               <Bell size={20}/>
-              <span className="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full border-2 border-white"></span>
+              <span className="absolute top-2 right-2.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-white"></span>
             </button>
             
-            <div className="flex items-center gap-3 pl-4 border-l border-slate-100">
-              <div className="text-right hidden sm:block">
+            <div className="flex items-center gap-3 pl-2 md:pl-4 border-l border-slate-100">
+              <div className="text-right hidden md:block">
                 <p className="text-xs font-bold text-slate-900 leading-none">{session?.user?.name || "Admin User"}</p>
-                <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Administrator</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase mt-1 tracking-tighter">Administrator</p>
               </div>
-              <div className="h-9 w-9 rounded-xl bg-slate-900 text-white flex items-center justify-center text-sm font-black shadow-lg shadow-slate-200">
+              <div className="h-9 w-9 rounded-xl bg-slate-900 text-white flex items-center justify-center text-sm font-black shadow-lg shadow-slate-200 shrink-0">
                 {session?.user?.name?.[0] || "A"}
               </div>
             </div>
@@ -42,14 +48,14 @@ export default function AdminDashboard() {
         </header>
 
         {/* Dashboard Content */}
-        <div className="p-8 max-w-7xl w-full">
-          <div className="mb-10">
-            <h2 className="text-3xl font-black text-slate-900 tracking-tight">System Overview</h2>
+        <div className="p-4 md:p-8 max-w-7xl w-full mx-auto">
+          <div className="mb-8 md:mb-10">
+            <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">System Overview</h2>
             <p className="text-slate-500 text-sm font-medium mt-1">Monitor your shop's performance and recent activity.</p>
           </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          {/* Stats Grid - Responsive columns */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8 md:mb-10">
             <DashboardCard title="Total Sales" value="Ksh 0" />
             <DashboardCard title="Total Orders" value="0" />
             <DashboardCard title="Products" value="0" />
@@ -57,18 +63,19 @@ export default function AdminDashboard() {
           </div>
 
           {/* Recent Orders Section */}
-          <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-50 flex items-center justify-between bg-white">
+          <div className="bg-white rounded-2xl md:rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-5 md:px-8 md:py-6 border-b border-slate-50 flex items-center justify-between bg-white">
               <div>
-                <h3 className="text-lg font-black text-slate-900">Recent Transactions</h3>
-                <p className="text-xs text-slate-400 font-bold uppercase mt-1">Last 10 orders</p>
+                <h3 className="text-base md:text-lg font-black text-slate-900 leading-tight">Recent Transactions</h3>
+                <p className="text-[10px] md:text-xs text-slate-400 font-bold uppercase mt-1">Last 10 orders</p>
               </div>
-              <button className="bg-slate-50 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 transition">
+              <button className="bg-slate-50 text-slate-600 px-3 py-1.5 md:px-4 md:py-2 rounded-xl text-xs font-bold hover:bg-slate-100 transition whitespace-nowrap">
                 View All
               </button>
             </div>
             
-            <div className="p-4">
+            {/* Added overflow-x-auto to handle tables on small screens */}
+            <div className="p-2 md:p-4 overflow-x-auto">
               <RecentOrders />
             </div>
           </div>
