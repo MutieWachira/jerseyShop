@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/src/components/Navbar";
-import { CartProvider } from "@/src/context/CartContext";
+import Providers from "@/src/components/Providers"; // Import the new wrapper
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "JerseyShop",
-  description: "Modern jersey e-commerce website",
+  title: "JerseyShop | Premium Football Kits",
+  description: "Modern jersey e-commerce website for authentic football fans",
 };
 
 export default function RootLayout({
@@ -25,19 +25,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="bg-slate-50 text-slate-900"  suppressHydrationWarning={true}>
-
-        <CartProvider>
-
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body 
+        className="bg-slate-50 text-slate-900 antialiased min-h-screen flex flex-col" 
+        suppressHydrationWarning={true}
+      >
+        <Providers>
           <Navbar />
-
-          <main>
+          {/* Added flex-grow so footer (if any) stays at bottom */}
+          <main className="flex-grow">
             {children}
           </main>
-
-        </CartProvider>
-
+        </Providers>
       </body>
     </html>
   );
