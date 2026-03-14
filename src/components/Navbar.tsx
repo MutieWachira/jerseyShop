@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCart } from "@/src/context/CartContext";
-import { useSession, signOut } from "next-auth/react"; // 1. Added NextAuth
-import { ShoppingCart, User, LogOut, Menu, X, ChevronDown } from "lucide-react"; // 2. Added Icons
+import { useSession, signOut } from "next-auth/react";
+import { ShoppingCart, User, LogOut, Menu, X, Search } from "lucide-react";
 
 type NavLinkProps = {
   href: string;
@@ -21,7 +21,7 @@ function NavLink({ href, label, onClick }: NavLinkProps) {
     <Link
       href={href}
       onClick={onClick}
-      className={`rounded-xl px-4 py-2 text-sm font-bold transition-all ${
+      className={`rounded-xl px-4 py-2 text-sm font-bold transition-all duration-200 ${
         isActive
           ? "bg-slate-900 text-white shadow-md shadow-slate-200"
           : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
@@ -33,42 +33,57 @@ function NavLink({ href, label, onClick }: NavLinkProps) {
 }
 
 export default function Navbar() {
+  const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
   const { cart } = useCart();
-  const { data: session, status } = useSession(); // 3. Get session status
+  const { data: session, status } = useSession();
   const loading = status === "loading";
+
+  // FIX: Automatically close mobile menu when path changes
+  useEffect(() => setMenuOpen(false), [pathname]);
+
+  // DEBUG: Hide the main navbar if we are in the admin dashboard
+  if (pathname.startsWith("/admin")) {
+    return null;
+  }
 
   const totalItems = (cart ?? []).reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-100 bg-white/80 backdrop-blur-md">
-      <nav className="mx-auto max-w-6xl px-4 py-3">
+    <header className="sticky top-0 z-50 w-full border-b border-slate-100 bg-white/80 backdrop-blur-md">
+      <nav className="mx-auto max-w-7xl px-6 py-3">
         <div className="flex items-center justify-between">
-          {/* Logo */}
-          <Link
-            href="/"
-            onClick={() => setMenuOpen(false)}
-            className="text-2xl font-black tracking-tighter text-slate-900 flex items-center gap-1"
-          >
-            Jersey<span className="text-slate-400">Shop</span>
-          </Link>
-
-          {/* Desktop Navigation */}
-          <div className="hidden items-center gap-1 md:flex">
-            <NavLink href="/" label="Home" />
-            <NavLink href="/shop" label="Shop" />
-            <NavLink href="/categories" label="Categories" />
-          </div>
+          {/* Logo Section */}
+          <div className="flex items-center gap-8">
+            <Link
+              href="/"
+              className="text-2xl font-black tracking-tighter text-slate-900"
+            >
+              Jersey<span className="text-slate-400">Shop</span>
+            </Link>
+</div>
+            {/* Desktop Nav Links */}
+            <div className="hidden items-center gap-1 lg:flex">
+              <NavLink href="/" label="Home" />
+              <NavLink href="/shop" label="Shop" />
+              <NavLink href="/categories" label="Categories" />
+            </div>
+          
 
           {/* Desktop Actions */}
           <div className="hidden items-center gap-3 md:flex">
+            {/* Search - Visual Improvement */}
+            <button className="p-2 text-slate-400 hover:text-slate-900 transition">
+              <Search size={20} />
+            </button>
+
             {/* Cart Link */}
             <Link
               href="/cart"
-              className="group relative flex items-center gap-2 rounded-2xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+              className="group relative flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 transition hover:border-slate-900 hover:text-slate-900"
             >
               <ShoppingCart size={18} className="text-slate-400 group-hover:text-slate-900" />
-              <span>Cart</span>
+              <span className="hidden lg:inline">Cart</span>
               {totalItems > 0 && (
                 <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-black text-white ring-2 ring-white">
                   {totalItems}
@@ -76,29 +91,29 @@ export default function Navbar() {
               )}
             </Link>
 
+            <div className="h-6 w-px bg-slate-200 mx-1" />
+
             {/* Auth Toggle */}
             {loading ? (
-              <div className="h-9 w-20 animate-pulse rounded-2xl bg-slate-100" />
+              <div className="h-9 w-24 animate-pulse rounded-2xl bg-slate-100" />
             ) : session ? (
-              /* Profile Option when Logged In */
               <div className="flex items-center gap-2">
                 <Link
                   href={session.user.role === "ADMIN" ? "/admin" : "/dashboard"}
-                  className="flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-2 text-sm font-bold text-slate-900 hover:bg-slate-200 transition"
+                  className="flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-slate-200 transition hover:bg-slate-800"
                 >
                   <User size={16} />
-                  {session.user.name?.split(" ")[0] || "Account"}
+                  <span>{session.user.name?.split(" ")[0]}</span>
                 </Link>
                 <button
                   onClick={() => signOut()}
-                  className="p-2 text-slate-400 hover:text-red-500 transition"
+                  className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition"
                   title="Logout"
                 >
                   <LogOut size={18} />
                 </button>
               </div>
             ) : (
-              /* Login Option when Logged Out */
               <Link
                 href="/login"
                 className="rounded-2xl bg-slate-900 px-6 py-2 text-sm font-bold text-white shadow-lg shadow-slate-200 transition hover:bg-slate-800 active:scale-95"
@@ -111,7 +126,7 @@ export default function Navbar() {
           {/* Mobile Toggle */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-900 md:hidden"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-900 md:hidden active:scale-90 transition-transform"
           >
             {menuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -119,19 +134,18 @@ export default function Navbar() {
 
         {/* Mobile Menu */}
         <div
-          className={`overflow-hidden transition-all duration-300 md:hidden ${
-            menuOpen ? "max-h-96 opacity-100 mt-4" : "max-h-0 opacity-0"
+          className={`overflow-hidden transition-all duration-300 ease-in-out md:hidden ${
+            menuOpen ? "max-h-[400px] opacity-100 mt-4" : "max-h-0 opacity-0"
           }`}
         >
-          <div className="flex flex-col gap-2 rounded-3xl border border-slate-100 bg-slate-50/50 p-4">
-            <NavLink href="/" label="Home" onClick={() => setMenuOpen(false)} />
-            <NavLink href="/shop" label="Shop" onClick={() => setMenuOpen(false)} />
-            <NavLink href="/categories" label="Categories" onClick={() => setMenuOpen(false)} />
+          <div className="flex flex-col gap-2 rounded-3xl border border-slate-100 bg-slate-50/50 p-4 shadow-inner">
+            <NavLink href="/" label="Home" />
+            <NavLink href="/shop" label="Shop" />
+            <NavLink href="/categories" label="Categories" />
 
             <div className="mt-4 grid grid-cols-2 gap-3">
               <Link
                 href="/cart"
-                onClick={() => setMenuOpen(false)}
                 className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white py-3 text-sm font-bold text-slate-900"
               >
                 <ShoppingCart size={16} />
@@ -141,14 +155,13 @@ export default function Navbar() {
               {session ? (
                 <button
                   onClick={() => signOut()}
-                  className="flex items-center justify-center gap-2 rounded-2xl bg-red-50 py-3 text-sm font-bold text-red-600"
+                  className="flex items-center justify-center gap-2 rounded-2xl bg-rose-50 py-3 text-sm font-bold text-rose-600"
                 >
                   <LogOut size={16} /> Logout
                 </button>
               ) : (
                 <Link
                   href="/login"
-                  onClick={() => setMenuOpen(false)}
                   className="flex items-center justify-center rounded-2xl bg-slate-900 py-3 text-sm font-bold text-white"
                 >
                   Login
