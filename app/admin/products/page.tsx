@@ -2,42 +2,60 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import Link from "next/link";
-import AdminSidebar from "@/app/admin/components/AdminSidebar"; // Ensure path is correct
-import { Edit3, Trash2, PackageSearch } from "lucide-react";
+import AdminSidebar from "@/app/admin/components/AdminSidebar";
+import { Edit3, Trash2, PackageSearch, Loader2 } from "lucide-react";
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
-    async function fetchProducts() {
-      try {
-        const res = await axios.get("/api/admin/products");
-        setProducts(Array.isArray(res.data) ? res.data : []);
-      } catch (err) {
-        console.error("API Error:", err);
-        setProducts([]);
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchProducts();
   }, []);
 
+  async function fetchProducts() {
+    try {
+      const res = await axios.get("/api/admin/products");
+      setProducts(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("API Error:", err);
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDelete(id: number) {
+    const confirmed = window.confirm("Are you sure you want to delete this product?");
+    if (!confirmed) return;
+
+    setDeletingId(id);
+
+    try {
+      await axios.delete(`/api/admin/products/${id}`);
+      // Remove deleted product from state without re-fetching
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert("Failed to delete product. Please try again.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   return (
     <div className="flex min-h-screen bg-[#F1F5F9]">
-      {/* 1. Sidebar Aligned */}
       <AdminSidebar />
 
-      {/* 2. Main Content with Margin Fix */}
       <main className="flex-1 lg:ml-64 p-8 lg:p-12">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
           <div>
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">Inventory</h1>
             <p className="text-slate-500 text-sm font-medium mt-1">Manage your shop products and stock levels.</p>
           </div>
-          <Link 
-            href="/admin/products/add" 
+          <Link
+            href="/admin/products/add"
             className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-bold hover:bg-slate-800 transition shadow-lg shadow-slate-200 active:scale-95 text-sm"
           >
             + Add New Jersey
@@ -69,46 +87,51 @@ export default function AdminProductsPage() {
                       <tr key={p.id} className="hover:bg-slate-50/50 transition">
                         <td className="p-6">
                           <div className="flex items-center gap-4">
-                            <img 
-                              src={p.image || "/placeholder-jersey.png"} 
-                              alt={p.name} 
-                              className="h-14 w-14 object-cover rounded-2xl border border-slate-100 bg-white" 
+                            <img
+                              src={p.image || "/placeholder-jersey.png"}
+                              alt={p.name}
+                              className="h-14 w-14 object-cover rounded-2xl border border-slate-100 bg-white"
                             />
                             <span className="text-sm font-bold text-slate-900">{p.name}</span>
                           </div>
                         </td>
                         <td className="p-6 text-sm font-bold text-slate-500">{p.team}</td>
                         <td className="p-6">
-                           <span className="text-[10px] font-black uppercase bg-slate-100 text-slate-600 px-3 py-1 rounded-full border border-slate-200">
-                             {p.category?.name || "General"}
-                           </span>
+                          <span className="text-[10px] font-black uppercase bg-slate-100 text-slate-600 px-3 py-1 rounded-full border border-slate-200">
+                            {p.category?.name || "General"}
+                          </span>
                         </td>
                         <td className="p-6 text-sm font-black text-slate-900">Ksh {p.price.toLocaleString()}</td>
                         <td className="p-6 text-center">
                           <span className={`px-3 py-1 rounded-lg text-[10px] font-black ${
-                            (p.variants?.reduce((s: number, v: any) => s + v.stock, 0) || 0) > 0 
-                            ? "bg-emerald-50 text-emerald-600" 
-                            : "bg-rose-50 text-rose-600"
+                            (p.variants?.reduce((s: number, v: any) => s + v.stock, 0) || 0) > 0
+                              ? "bg-emerald-50 text-emerald-600"
+                              : "bg-rose-50 text-rose-600"
                           }`}>
                             {p.variants?.reduce((sum: number, v: any) => sum + v.stock, 0) || 0}
                           </span>
                         </td>
                         <td className="p-6">
                           <div className="flex justify-end gap-2">
-                            <Link 
-                              href={`/admin/products/edit/${p.id}`} 
+                            <Link
+                              href={`/admin/products/edit/${p.id}`}
                               className="p-2 bg-slate-50 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition"
                               title="Edit Product"
                             >
                               <Edit3 size={18} />
                             </Link>
-                            <Link 
-                              href={`/admin/products/delete/${p.id}`} 
-                              className="p-2 bg-rose-50 text-rose-400 hover:text-rose-600 hover:bg-rose-100 rounded-xl transition"
+                            <button
+                              onClick={() => handleDelete(p.id)}
+                              disabled={deletingId === p.id}
+                              className="p-2 bg-rose-50 text-rose-400 hover:text-rose-600 hover:bg-rose-100 rounded-xl transition disabled:opacity-50"
                               title="Delete Product"
                             >
-                              <Trash2 size={18} />
-                            </Link>
+                              {deletingId === p.id ? (
+                                <Loader2 size={18} className="animate-spin" />
+                              ) : (
+                                <Trash2 size={18} />
+                              )}
+                            </button>
                           </div>
                         </td>
                       </tr>

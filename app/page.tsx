@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { getFeaturedProducts } from "@/src/lib/products";
 import ProductCard from "@/src/components/ProductCard";
+import { authOptions } from "@/src/lib/auth";
+import { redirect } from "next/navigation";
+import { getServerSession as nextAuthGetServerSession } from "next-auth/next";
 
 // 1. Define the shape of your product data for TypeScript
 interface Product {
@@ -14,8 +17,16 @@ interface Product {
 }
 
 export default async function HomePage() {
-  
+    const session = await getServerSession(authOptions);
 
+  // Redirect admin to their dashboard on landing
+  if (session?.user?.role === "ADMIN") {
+    redirect("/admin");
+  }
+
+   if (session?.user?.role === "USER") {
+    redirect("/shop");
+  }
   // TypeScript will now know that featuredProducts is an array of Products
   const featuredProducts: Product[] = await getFeaturedProducts();
 
@@ -119,3 +130,7 @@ export default async function HomePage() {
     </main>
   );
 }
+async function getServerSession(authOptions: any) {
+  return await nextAuthGetServerSession(authOptions) as any;
+}
+

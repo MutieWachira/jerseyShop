@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/src/lib/prisma";
 
-
-// GET /api/admin/products
-// FIXED: Restored this function so your table can actually load data
 export async function GET() {
   try {
     const products = await prisma.product.findMany({
@@ -12,9 +9,7 @@ export async function GET() {
         variants: true,
         reviews: true,
       },
-      orderBy: {
-        createdAt: "desc",
-      },
+      orderBy: { createdAt: "desc" },
     });
     return NextResponse.json(products);
   } catch (error) {
@@ -23,50 +18,63 @@ export async function GET() {
   }
 }
 
-// POST /api/admin/products
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
+    // Destructure exactly what the frontend sends
     const { name, description, price, image, team, categoryId, variants } = body;
 
-    // 1. Validation
-    if (!name || !description || !price || !image || !team || !categoryId) {
-      return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    // 1. Validation - Ensure all required core fields exist
+    if (!name || !price || !categoryId) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // 2. Check if category exists
+    // 2. Check if category exists before attempting creation
     const categoryExists = await prisma.category.findUnique({
       where: { id: categoryId },
     });
+    
     if (!categoryExists) {
-      return NextResponse.json({ error: "Category not found" }, { status: 404 });
+      return NextResponse.json({ error: "Selected category does not exist" }, { status: 404 });
     }
 
-    // 3. Create product with Type Conversions
-    // IMPROVEMENT: Using Number() handles both string and number inputs safely
+    // 3. Create product with Nested Variants
     const product = await prisma.product.create({
       data: {
         name,
         description,
-        price: typeof price === "string" ? parseFloat(price) : price, 
+        price: parseFloat(price.toString()), 
         image,
         team,
         categoryId,
-        // Using the relation to create variants simultaneously
-        variants: variants && Array.isArray(variants) ? {
+        // Logic check: only create variants if the array is provided and not empty
+        variants: (variants && Array.isArray(variants) && variants.length > 0) ? {
           create: variants.map((v: any) => ({
-            size: v.size,
-            version: v.version,
-            stock: typeof v.stock === "string" ? parseInt(v.stock) : v.stock
+            size: v.size, // Must match your Size Enum (XS, S, M...)
+            version: v.version || "FAN", // Must match KitVersion Enum
+            stock: parseInt(v.stock?.toString() || "0")
           }))
         } : undefined
       },
+      include: {
+        variants: true // Return the created variants in the response
+      }
     });
 
     return NextResponse.json(product, { status: 201 });
-  } catch (error) {
+
+  } catch (error: any) {
     console.error("POST products error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    
+    // Specific error handling for Prisma Enum validation
+    if (error.code === 'P2002') {
+      return NextResponse.json({ error: "Product unique constraint failed" }, { status: 400 });
+    }
+
+    return NextResponse.json({ 
+      error: "Internal Server Error", 
+      details: error.message 
+    }, { status: 500 });
   }
 }

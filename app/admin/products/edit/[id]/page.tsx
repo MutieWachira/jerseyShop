@@ -1,58 +1,132 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useParams, useRouter } from "next/navigation"
-import { Package, ArrowLeft, Upload, Loader2, Image as ImageIcon } from "lucide-react"
-import Link from "next/link"
+import { useState, useEffect } from "react";
+import { Package, ArrowLeft, Loader2, ChevronDown } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+
+interface Category {
+  id: string;
+  name: string;
+}
+
+interface Variant {
+  size: string;
+  version: string;
+  stock: number;
+}
+
+const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
 
 export default function EditProduct() {
-  const { id } = useParams()
-  const router = useRouter()
+  const params = useParams();
+  const router = useRouter();
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
 
-  const [name, setName] = useState("")
-  const [description, setDescription] = useState("")
-  const [price, setPrice] = useState("")
-  const [team, setTeam] = useState("")
-  const [categoryId, setCategoryId] = useState("")
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [image, setImage] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [fetching, setFetching] = useState(true)
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [variants, setVariants] = useState<Variant[]>([]);
 
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [price, setPrice] = useState("");
+  const [team, setTeam] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [image, setImage] = useState("");
+
+  const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
+
+  // Fetch categories
   useEffect(() => {
-    fetch(`/api/admin/products/${id}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data) {
-          setName(data.name || "")
-          setDescription(data.description || "")
-          setPrice(data.price?.toString() || "")
-          setTeam(data.team || "")
-          setCategoryId(data.categoryId || "")
-          setImage(data.image || "")
-        }
-      })
-      .catch(err => console.error("Error loading product:", err))
-      .finally(() => setFetching(false))
-  }, [id])
+    const getCategories = async () => {
+      const res = await fetch("/api/admin/categories");
+      const data = await res.json();
+      setCategories(data);
+    };
+    getCategories();
+  }, []);
 
+  // Fetch product — now includes variants with size, version, stock
+  useEffect(() => {
+    const loadProduct = async () => {
+      try {
+        const res = await fetch(`/api/admin/products/${id}`);
+        const data = await res.json();
+
+        setName(data.name || "");
+        setDescription(data.description || "");
+        setPrice(data.price?.toString() || "");
+        setTeam(data.team || "");
+        setCategoryId(data.categoryId || "");
+        setImage(data.image || "");
+
+        // Map DB variants to component shape — guards against missing fields
+        if (Array.isArray(data.variants) && data.variants.length > 0) {
+          setVariants(
+            data.variants.map((v: { size: string; version: string; stock: number }) => ({
+              size: v.size,
+              version: v.version || "FAN",
+              stock: v.stock ?? 0,
+            }))
+          );
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setFetching(false);
+      }
+    };
+
+    if (id) loadProduct();
+  }, [id]);
+
+  // Toggle size on/off
+  const toggleSize = (size: string) => {
+    const exists = variants.find((v) => v.size === size);
+    if (exists) {
+      setVariants((prev) => prev.filter((v) => v.size !== size));
+    } else {
+      setVariants((prev) => [...prev, { size, version: "FAN", stock: 0 }]);
+    }
+  };
+
+  // Update stock for a size
+  const updateStock = (size: string, value: number) => {
+    setVariants((prev) =>
+      prev.map((v) => (v.size === size ? { ...v, stock: value } : v))
+    );
+  };
+
+  // Update version for a size
+  const updateVersion = (size: string, version: string) => {
+    setVariants((prev) =>
+      prev.map((v) => (v.size === size ? { ...v, version } : v))
+    );
+  };
+
+  // Submit update
   const updateProduct = async () => {
-    if (!name || !price) return alert("Name and Price are required")
-    
-    setLoading(true)
-    let imagePath = image
+    if (!name || !price || !categoryId || !description) {
+      return alert("Please fill required fields");
+    }
+
+    setLoading(true);
 
     try {
+      let imagePath = image;
+
       if (imageFile) {
-        const formData = new FormData()
-        formData.append("file", imageFile)
+        const formData = new FormData();
+        formData.append("file", imageFile);
 
         const upload = await fetch("/api/upload", {
           method: "POST",
-          body: formData
-        })
-        const data = await upload.json()
-        imagePath = data.path 
+          body: formData,
+        });
+
+        const uploadData = await upload.json();
+        imagePath = uploadData.path;
       }
 
       const response = await fetch(`/api/admin/products/${id}`, {
@@ -64,160 +138,193 @@ export default function EditProduct() {
           price: parseFloat(price),
           team,
           categoryId,
-          image: imagePath
-        })
-      })
+          image: imagePath,
+          variants,
+        }),
+      });
 
       if (response.ok) {
-        alert("Product Updated Successfully")
-        router.push("/admin/products")
-        router.refresh()
+        alert("Product Updated Successfully");
+        router.push("/admin/products");
       } else {
-        const errData = await response.json()
-        alert(`Error: ${errData.error || "Update failed"}`)
+        const err = await response.json();
+        alert(err.error || "Update failed");
       }
     } catch (err) {
-      console.error(err)
-      alert("An unexpected error occurred")
+      console.error(err);
+      alert("Unexpected error");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   if (fetching) {
     return (
       <div className="min-h-screen bg-slate-50 lg:ml-64 flex items-center justify-center">
         <Loader2 className="animate-spin text-slate-400" size={40} />
       </div>
-    )
+    );
   }
 
   return (
-    // lg:ml-64 accounts for sidebar, pt-24 accounts for mobile top bar
-    <div className="min-h-screen bg-slate-50 lg:ml-64 p-4 md:p-8 pt-24 lg:pt-8 transition-all">
-      
+    <div className="min-h-screen bg-slate-50 lg:ml-64 p-4 md:p-8 pt-20 lg:pt-8">
       <div className="max-w-4xl mx-auto mb-8">
-        <button 
-          onClick={() => router.back()}
-          className="flex items-center text-sm font-bold text-slate-500 hover:text-slate-900 transition mb-2"
+        <Link
+          href="/admin/products"
+          className="flex items-center text-sm font-bold text-slate-500 hover:text-slate-900 mb-2"
         >
           <ArrowLeft size={16} className="mr-1" /> Back to Products
-        </button>
+        </Link>
         <h1 className="text-3xl font-black tracking-tight text-slate-900 flex items-center gap-2">
           <Package className="text-slate-400" /> Edit Product
         </h1>
       </div>
 
-      <div className="max-w-4xl mx-auto">
-        <div className="bg-white border border-slate-200 shadow-sm rounded-2xl overflow-hidden">
-          <div className="p-6 md:p-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              
-              {/* Left Side: Text Details */}
-              <div className="space-y-5">
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-1 ml-1">Product Name</label>
-                  <input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl p-3 text-slate-700 focus:ring-2 focus:ring-slate-900 outline-none transition"
-                    placeholder="Jersey Name"
-                  />
-                </div>
+      <div className="text-slate-800 max-w-4xl mx-auto bg-white border border-slate-200 shadow-sm rounded-2xl p-6 md:p-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
 
-                <div>
-                  <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-1 ml-1">Description</label>
-                  <textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    rows={4}
-                    className="w-full border border-slate-200 rounded-xl p-3 text-slate-700 focus:ring-2 focus:ring-slate-900 outline-none transition"
-                    placeholder="Product details..."
-                  />
-                </div>
+          {/* LEFT SIDE */}
+          <div className="space-y-4">
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-1 ml-1">Price (Ksh)</label>
-                    <input
-                      type="number"
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value)}
-                      className="w-full border border-slate-200 rounded-xl p-3 text-slate-700 focus:ring-2 focus:ring-slate-900 outline-none transition"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-1 ml-1">Team</label>
-                    <input
-                      value={team}
-                      onChange={(e) => setTeam(e.target.value)}
-                      className="w-full border border-slate-200 rounded-xl p-3 text-slate-700 focus:ring-2 focus:ring-slate-900 outline-none transition"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Side: Media & Actions */}
-              <div className="space-y-6">
-                <div className="p-5 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                  <label className="block text-xs font-black uppercase tracking-wider text-slate-400 mb-4 flex items-center gap-2">
-                    <ImageIcon size={14} /> Current Image
-                  </label>
-                  
-                  <div className="flex flex-col items-center gap-4">
-                    {image ? (
-                      <img 
-                        src={image} 
-                        alt="Preview" 
-                        className="w-full h-full object-cover rounded-xl border border-white shadow-sm bg-white" 
-                      />
-                    ) : (
-                      <div className="w-full h-48 flex items-center justify-center bg-white rounded-xl border border-slate-200 text-slate-300">
-                        No Image
-                      </div>
-                    )}
-                    
-                    <div className="w-full ">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        id="product-image"
-                        onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                      />
-                      <label 
-                        htmlFor="product-image"
-                        className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-600 hover:bg-slate-50 cursor-pointer transition shadow-sm"
-                      >
-                        <Upload size={16} />
-                        {imageFile ? imageFile.name : "Replace Image"}
-                      </label>
-                      <p className="text-[10px] text-slate-400 mt-2 text-center italic font-medium">
-                        Leaving this empty keeps the current image
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-2">
-                  <button
-                    onClick={updateProduct}
-                    disabled={loading}
-                    className="w-full bg-slate-900 text-white font-black py-4 rounded-xl hover:bg-slate-800 transition-all active:scale-95 disabled:opacity-50 shadow-lg shadow-slate-200 flex items-center justify-center gap-2"
-                  >
-                    {loading ? (
-                      <><Loader2 className="animate-spin" size={20} /> Saving Changes...</>
-                    ) : (
-                      "Update Product"
-                    )}
-                  </button>
-                </div>
-              </div>
-
+            <div>
+              <label className="text-sm font-bold">Product Name</label>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full border border-slate-200 rounded-xl p-3"
+              />
             </div>
+
+            <div>
+              <label className="text-sm font-bold">Description</label>
+              <textarea
+                rows={3}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full border border-slate-200 rounded-xl p-3"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-bold">Team</label>
+              <input
+                value={team}
+                onChange={(e) => setTeam(e.target.value)}
+                className="w-full border border-slate-200 rounded-xl p-3"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-bold">Category</label>
+              <div className="relative">
+                <select
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl p-3 appearance-none"
+                >
+                  <option value="">Select Category</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-4 text-slate-400" />
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-bold">Price</label>
+              <input
+                type="number"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                className="border border-slate-200 rounded-xl p-3 w-full"
+              />
+            </div>
+
+          </div>
+
+          {/* RIGHT SIDE */}
+          <div className="space-y-6">
+
+            <div>
+              <label className="text-sm font-bold mb-2 block">
+                Variants (Size, Version, Stock)
+              </label>
+              <div className="space-y-2">
+                {SIZES.map((size) => {
+                  const variant = variants.find((v) => v.size === size);
+                  return (
+                    <div key={size} className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleSize(size)}
+                        className={`h-10 w-12 rounded-lg font-bold border ${
+                          variant
+                            ? "bg-slate-900 text-white border-slate-900"
+                            : "bg-white text-slate-600 border-slate-200"
+                        }`}
+                      >
+                        {size}
+                      </button>
+
+                      {variant && (
+                        <>
+                          <select
+                            value={variant.version}
+                            onChange={(e) => updateVersion(size, e.target.value)}
+                            className="border rounded-lg p-2"
+                          >
+                            <option value="FAN">FAN</option>
+                            <option value="PLAYER">PLAYER</option>
+                          </select>
+
+                          <input
+                            type="number"
+                            value={variant.stock}
+                            onChange={(e) => updateStock(size, Number(e.target.value))}
+                            className="border rounded-lg p-2 w-20"
+                            placeholder="Stock"
+                          />
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-bold mb-2 block">Product Image</label>
+              {image && !imageFile && (
+                <img src={image} className="rounded-xl mb-3" />
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+              />
+            </div>
+
+            <button
+              onClick={updateProduct}
+              disabled={loading}
+              className="w-full bg-slate-900 text-white font-black py-4 rounded-xl flex items-center justify-center"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="animate-spin mr-2" />
+                  Updating...
+                </>
+              ) : (
+                "Update Product"
+              )}
+            </button>
+
           </div>
         </div>
       </div>
     </div>
-  )
+  );
 }
