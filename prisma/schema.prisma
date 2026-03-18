@@ -187,6 +187,20 @@ model Review {
   @@unique([userId, productId])
 }
 
+//////////////////////////
+// SETTINGS
+//////////////////////////
+
+model Setting {
+  key       String   @id // e.g. "shop_name", "low_stock_threshold"
+  value     String // always stored as string, parsed on read
+  updatedAt DateTime @updatedAt
+}
+
+//////////////////////////
+// AUTH
+//////////////////////////
+
 model Account {
   id                String  @id @default(cuid())
   userId            String
