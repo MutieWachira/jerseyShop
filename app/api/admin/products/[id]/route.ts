@@ -2,11 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
+import { Size, KitVersion } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
 };
+
+// Valid enum values for runtime validation
+const VALID_SIZES = Object.values(Size);
+const VALID_VERSIONS = Object.values(KitVersion);
 
 export async function PUT(req: NextRequest, { params }: RouteContext) {
   try {
@@ -64,15 +69,33 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       }
     }
 
-    // Update variants if provided
+    // Update variants with proper enum validation
     if (Array.isArray(variants)) {
-      // Delete existing variants then recreate with new values
+
+      // Validate each variant's enum values before touching the DB
+      for (const v of variants) {
+        if (!VALID_SIZES.includes(v.size)) {
+          return NextResponse.json(
+            { error: `Invalid size "${v.size}". Must be one of: ${VALID_SIZES.join(", ")}` },
+            { status: 400 }
+          );
+        }
+        if (!VALID_VERSIONS.includes(v.version)) {
+          return NextResponse.json(
+            { error: `Invalid version "${v.version}". Must be one of: ${VALID_VERSIONS.join(", ")}` },
+            { status: 400 }
+          );
+        }
+      }
+
+      // Delete existing variants then recreate with validated values
       await prisma.productVariant.deleteMany({ where: { productId: id } });
+
       data.variants = {
         create: variants.map((v: { size: string; version: string; stock: number }) => ({
-          size: v.size,
-          version: v.version,
-          stock: Number(v.stock) || 0,
+          size: v.size as Size,             // safe cast — validated above
+          version: v.version as KitVersion, // safe cast — validated above
+          stock: Math.max(0, Number(v.stock) || 0), // prevent negative stock
         })),
       };
     }
@@ -99,7 +122,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       where: { id },
       include: {
         category: true,
-        variants: true, // ← now returns size, version, stock
+        variants: true,
       },
     });
 
@@ -127,7 +150,7 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error: "Invalid product id" }, { status: 400 });
     }
 
-    // Sequential deletes instead of $transaction (pooler doesn't support interactive transactions)
+    // Sequential deletes — avoids $transaction pooler limitation
     await prisma.productVariant.deleteMany({ where: { productId: id } });
     await prisma.review.deleteMany({ where: { productId: id } });
     await prisma.product.delete({ where: { id } });
