@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { shipping, paymentMethod, items, total } = body ?? {};
+    const { shipping, paymentMethod, items, total, discountCode } = body ?? {};
 
     // Shipping validation
     if (
@@ -30,9 +30,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Payment method — mpesa (STK Push) or card (Flutterwave)
-    // No paymentDetails needed here — payment is handled by the
-    // respective payment API routes after the order is created
     if (!["mpesa", "card"].includes(paymentMethod)) {
       return NextResponse.json(
         { error: "Invalid payment method" },
@@ -52,6 +49,34 @@ export async function POST(req: NextRequest) {
         { error: "Invalid order total" },
         { status: 400 }
       );
+    }
+
+    // Resolve discount if a code was provided
+    let discountRecord: {
+      id: string;
+      code: string;
+      percentage: number;
+      maxUses: number | null;
+      usedCount: number;
+      expiresAt: Date | null;
+      active: boolean;
+    } | null = null;
+
+    if (discountCode && typeof discountCode === "string") {
+      const found = await prisma.discount.findUnique({
+        where: { code: discountCode.trim().toUpperCase() },
+      });
+
+      // Silently ignore invalid codes at order time —
+      // the frontend already validated, but we re-check server-side
+      if (
+        found &&
+        found.active &&
+        (!found.expiresAt || new Date() <= found.expiresAt) &&
+        (found.maxUses === null || found.usedCount < found.maxUses)
+      ) {
+        discountRecord = found;
+      }
     }
 
     // Verify all variants exist and have sufficient stock
@@ -76,15 +101,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Create order — starts as PENDING
-    // Status moves to PAID via:
-    //   M-Pesa → /api/payments/mpesa/callback  (Safaricom webhook)
-    //   Card   → /api/payments/flutterwave/webhook (Flutterwave webhook)
+    // Create order
     const order = await prisma.order.create({
       data: {
-        userId: session.user.id,
+        userId:       session.user.id,
         total,
-        status: "PENDING",
+        status:       "PENDING",
+        // Snapshot discount details at time of order
+        discountId:   discountRecord?.id   ?? null,
+        discountCode: discountRecord?.code ?? null,
+        discountPct:  discountRecord?.percentage ?? null,
         items: {
           create: items.map((item: {
             productId:         number;
@@ -102,11 +128,19 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Deduct stock sequentially — avoids $transaction pooler issue
+    // Deduct stock sequentially
     for (const item of items) {
       await prisma.productVariant.update({
         where: { id: item.variantId },
         data:  { stock: { decrement: item.quantity } },
+      });
+    }
+
+    // Increment discount usedCount
+    if (discountRecord) {
+      await prisma.discount.update({
+        where: { id: discountRecord.id },
+        data:  { usedCount: { increment: 1 } },
       });
     }
 

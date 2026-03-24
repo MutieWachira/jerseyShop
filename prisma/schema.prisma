@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
@@ -132,6 +133,25 @@ model CartItem {
 }
 
 //////////////////////////
+// DISCOUNT
+//////////////////////////
+
+model Discount {
+  id         String    @id @default(cuid())
+  code       String    @unique
+  percentage Int // e.g. 20 means 20% off
+  maxUses    Int? // null = unlimited
+  usedCount  Int       @default(0)
+  expiresAt  DateTime? // null = never expires
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+
+  orders Order[]
+
+  @@index([code])
+}
+
+//////////////////////////
 // ORDERS
 //////////////////////////
 
@@ -142,8 +162,14 @@ model Order {
   status    OrderStatus @default(PENDING)
   createdAt DateTime    @default(now())
 
-  user  User        @relation(fields: [userId], references: [id])
-  items OrderItem[]
+  // Discount applied to this order
+  discountId   String?
+  discountCode String? // snapshot of code at time of order
+  discountPct  Int? // snapshot of percentage at time of order
+
+  user     User        @relation(fields: [userId], references: [id])
+  discount Discount?   @relation(fields: [discountId], references: [id])
+  items    OrderItem[]
 
   @@index([userId])
 }
@@ -192,8 +218,8 @@ model Review {
 //////////////////////////
 
 model Setting {
-  key       String   @id // e.g. "shop_name", "low_stock_threshold"
-  value     String // always stored as string, parsed on read
+  key       String   @id
+  value     String
   updatedAt DateTime @updatedAt
 }
 
