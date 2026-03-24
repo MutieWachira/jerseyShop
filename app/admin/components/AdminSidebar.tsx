@@ -15,6 +15,7 @@ const NAV_ITEMS = [
   { label: "Orders", href: "/admin/orders", icon: ShoppingBag },
   { label: "Customers", href: "/admin/users", icon: Users },
   { label: "Discounts", href: "/admin/discounts", icon: Package },
+  { label: "Categories", href: "/admin/categories", icon: Package },
 ];
 
 export default function AdminSidebar() {

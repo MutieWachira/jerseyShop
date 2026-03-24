@@ -99,7 +99,7 @@ export default function Navbar() {
             ) : session ? (
               <div className="flex items-center gap-2">
                 <Link
-                  href={session.user.role === "ADMIN" ? "/admin" : "/dashboard"}
+                  href={session.user.role === "ADMIN" ? "/admin" : "/shop"}
                   className="flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-slate-200 transition hover:bg-slate-800"
                 >
                   <User size={16} />

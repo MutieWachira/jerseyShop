@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getFeaturedProducts, getRetroProducts } from "@/src/lib/products";
+import { getFeaturedProducts, getRetroProducts, getWeeklyTopProducts } from "@/src/lib/products";
 import ProductCard from "@/src/components/ProductCard";
 import HeroSlideshow from "@/src/components/HeroSlideshow";
 import { authOptions } from "@/src/lib/auth";
@@ -24,8 +24,8 @@ export default async function HomePage() {
   }
 
   // Run both queries in parallel
-  const [featuredProducts, retroProducts] = await Promise.all([
-    getFeaturedProducts(),
+  const [topProducts, retroProducts] = await Promise.all([
+    getWeeklyTopProducts(),
     getRetroProducts(),
   ]);
 
@@ -111,41 +111,49 @@ export default async function HomePage() {
       </section>
 
       {/* ── Featured Products ── */}
-      <section className="mx-auto max-w-6xl px-4 pb-16">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      {/* 🔥 MOST SOLD SECTION */}
+      <section className="text-slate-900 mx-auto max-w-6xl px-4 pb-16">
+        <div className="flex justify-between items-end">
+
           <div>
-            <p className="text-sm font-extrabold uppercase tracking-[0.2em] text-slate-500">
-              Featured Products
+            <p className="text-sm font-extrabold uppercase text-slate-500">
+              Weekly Best Sellers
             </p>
-            <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900">
+
+            <h2 className="text-3xl font-extrabold text-slate-900">
               Fan favourite this week
             </h2>
           </div>
-          <Link
-            href="/shop"
-            className="text-sm font-extrabold text-slate-700 transition hover:text-slate-900"
-          >
+
+          <Link href="/shop" className="text-sm font-bold">
             View all products
           </Link>
+
         </div>
-        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {featuredProducts.map((product: Product) => (
-            <ProductCard
-              key={product.id}
-              id={product.id}
-              name={product.name}
-              team={product.team}
-              price={product.price}
-              description={product.description}
-              image={product.image}
-              categoryId={product.categoryId}
-            />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
+
+          {topProducts?.map((product: any) => (
+            product && (
+              <ProductCard
+                key={product.id}
+                id={product.id}
+                name={product.name}
+                team={product.team}
+                price={product.price}
+                description={product.description}
+                image={product.image}
+                categoryId={product.categoryId}
+              />
+            )
           ))}
-          {featuredProducts.length === 0 && (
-            <div className="col-span-full rounded-2xl border border-slate-200 bg-white p-6 text-center text-sm text-slate-600 shadow-sm">
-              No featured products yet
+
+          {(!topProducts || topProducts.length === 0) && (
+            <div className="col-span-full text-center p-6 bg-white rounded-xl">
+              No sales yet this week
             </div>
           )}
+
         </div>
       </section>
 

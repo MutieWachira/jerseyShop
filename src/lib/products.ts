@@ -43,3 +43,45 @@ export async function getRetroProducts() {
     throw error;
   }
 }
+
+//function to get the most sold jerseys for the week
+export async function getWeeklyTopProducts() {
+  const oneWeekAgo = new Date();
+  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+  const topProducts = await prisma.orderItem.groupBy({
+    by: ["productId"],
+    _sum: {
+      quantity: true,
+    },
+    where: {
+      order: {
+        createdAt: {
+          gte: oneWeekAgo,
+        },
+        status: "PAID", // only count paid orders
+      },
+    },
+    orderBy: {
+      _sum: {
+        quantity: "desc",
+      },
+    },
+    take: 8,
+  });
+
+  const productIds = topProducts.map((p) => p.productId);
+
+  const products = await prisma.product.findMany({
+    where: {
+      id: {
+        in: productIds,
+      },
+    },
+  });
+
+  // Preserve order (important!)
+  return productIds.map((id) =>
+    products.find((p) => p.id === id)
+  );
+}
