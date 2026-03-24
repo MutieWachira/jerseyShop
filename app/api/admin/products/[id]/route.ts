@@ -13,6 +13,18 @@ type RouteContext = {
 const VALID_SIZES = Object.values(Size);
 const VALID_VERSIONS = Object.values(KitVersion);
 
+/**
+ * Helper to create a URL-friendly slug
+ */
+const slugify = (text: string) =>
+  text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")     // Replace spaces with -
+    .replace(/[^\w-]+/g, "")   // Remove all non-word chars
+    .replace(/--+/g, "-");     // Replace multiple - with single -
+
 export async function PUT(req: NextRequest, { params }: RouteContext) {
   try {
     const session = await getServerSession(authOptions);
@@ -63,7 +75,11 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
         const categoryRow = await prisma.category.upsert({
           where: { name: resolvedCategoryName },
           update: {},
-          create: { name: resolvedCategoryName },
+          create: { 
+            name: resolvedCategoryName,
+            // FIX: Added slug to resolve Vercel build error
+            slug: slugify(resolvedCategoryName) 
+          },
         });
         data.category = { connect: { id: categoryRow.id } };
       }
@@ -71,7 +87,6 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
 
     // Update variants with proper enum validation
     if (Array.isArray(variants)) {
-
       // Validate each variant's enum values before touching the DB
       for (const v of variants) {
         if (!VALID_SIZES.includes(v.size)) {
@@ -150,14 +165,30 @@ export async function DELETE(req: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error: "Invalid product id" }, { status: 400 });
     }
 
-    // Sequential deletes — avoids $transaction pooler limitation
+    /**
+     * FIX: Handling Foreign Key Constraints
+     * We delete child records sequentially to clear the path for the main Product delete.
+     */
+    
+    // 1. Clear variants associated with this product
     await prisma.productVariant.deleteMany({ where: { productId: id } });
+    
+    // 2. Clear reviews associated with this product
     await prisma.review.deleteMany({ where: { productId: id } });
+
+    // 3. Clear OrderItems if they exist (Be careful: usually you'd want to keep order history)
+    // If your schema has an OrderItem table, uncomment the line below:
+    // await prisma.orderItem?.deleteMany({ where: { productId: id } });
+
+    // 4. Finally, delete the product record itself
     await prisma.product.delete({ where: { id } });
 
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("DELETE error:", err);
-    return NextResponse.json({ error: "Failed to delete. Ensure product exists." }, { status: 500 });
+    return NextResponse.json(
+      { error: "Delete failed. This product might be linked to an existing Order that cannot be deleted." }, 
+      { status: 500 }
+    );
   }
 }
