@@ -57,6 +57,16 @@ export async function PATCH(req: NextRequest) {
         return NextResponse.json({ error: "User not found" }, { status: 404 });
       }
 
+      // ✅ Fix for Vercel/TypeScript error:
+      // Narrow the type to ensure password is not null (OAuth users won't have a password)
+      if (!user.password) {
+        return NextResponse.json(
+          { error: "Accounts registered via Google/Apple cannot change passwords here. Use the provider settings." },
+          { status: 400 }
+        );
+      }
+
+      // Now user.password is guaranteed to be a string
       const valid = await bcrypt.compare(String(currentPassword), user.password);
       if (!valid) {
         return NextResponse.json({ error: "Current password is incorrect" }, { status: 403 });
