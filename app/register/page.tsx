@@ -133,7 +133,7 @@ export default function RegisterPage() {
           <div className="space-y-3">
             <button
               type="button"
-              onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+              onClick={() => signIn("google", { callbackUrl: "/shop" })}
               className="text-slate-600 w-full flex items-center justify-center gap-3 border border-slate-300 rounded-xl py-3 hover:bg-slate-50 transition"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="w-5 h-5">
@@ -148,7 +148,7 @@ export default function RegisterPage() {
 
             <button
               type="button"
-              onClick={() => signIn("apple", { callbackUrl: "/dashboard" })}
+              onClick={() => signIn("apple", { callbackUrl: "/shop" })}
               className="w-full flex items-center justify-center gap-3 bg-black text-white rounded-xl py-3 hover:opacity-90 transition"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">

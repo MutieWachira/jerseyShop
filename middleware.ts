@@ -6,39 +6,43 @@ export default withAuth(
     const token = req.nextauth.token;
     const { pathname } = req.nextUrl;
 
-    // If user is logged in and tries to access login/signup
-    if (token && (pathname.startsWith("/login") || pathname.startsWith("/signup"))) {
-      if (token.role === "ADMIN") {
-        return NextResponse.redirect(new URL("/admin", req.url));
-      }
-      return NextResponse.redirect(new URL("/shop", req.url));
+    // 1. Redirect authenticated users away from Auth pages
+    if (token && (pathname === "/login" || pathname === "/signup")) {
+      const url = token.role === "ADMIN" ? "/admin" : "/shop";
+      return NextResponse.redirect(new URL(url, req.url));
     }
 
-    // Protect checkout
-    if (pathname.startsWith("/checkout")) {
-      if (!token) {
-        return NextResponse.redirect(new URL("/login", req.url));
-      }
+    // 2. Role-based zone protection
+    // Redirect Admins away from the user shop to the admin panel
+    if (pathname.startsWith("/shop") && token?.role === "ADMIN") {
+      return NextResponse.redirect(new URL("/admin", req.url));
     }
 
-    // Protect orders
-    if (pathname.startsWith("/orders")) {
-      if (!token) {
-        return NextResponse.redirect(new URL("/login", req.url));
-      }
-    }
-
-    // Protect admin routes
+    // 3. Protect Admin routes
     if (pathname.startsWith("/admin")) {
-      if (!token || token.role !== "ADMIN") {
-        return NextResponse.redirect(new URL("/", req.url));
+      if (!token) {
+        const loginUrl = new URL("/login", req.url);
+        loginUrl.searchParams.set("callbackUrl", pathname);
+        return NextResponse.redirect(loginUrl);
       }
+      if (token.role !== "ADMIN") {
+        return NextResponse.redirect(new URL("/shop", req.url));
+      }
+    }
+
+    // 4. Protect Customer routes
+    const isProtectedRoute = pathname.startsWith("/checkout") || pathname.startsWith("/orders");
+    if (isProtectedRoute && !token) {
+      const loginUrl = new URL("/login", req.url);
+      loginUrl.searchParams.set("callbackUrl", pathname);
+      return NextResponse.redirect(loginUrl);
     }
 
     return NextResponse.next();
   },
   {
     callbacks: {
+      // Keep this true so our custom logic above handles all redirects
       authorized: () => true,
     },
   }
@@ -48,8 +52,9 @@ export const config = {
   matcher: [
     "/login",
     "/signup",
+    "/shop/:path*",  // ✅ Added to handle Admin -> Shop logic
     "/checkout/:path*",
     "/orders/:path*",
-    "/admin/:path*"
+    "/admin/:path*",
   ],
 };

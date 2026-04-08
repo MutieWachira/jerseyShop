@@ -99,7 +99,7 @@ export default async function ShopPage({ searchParams }: Props) {
         </div>
 
         {/* SEARCH + SORT */}
-        <div className="mt-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="text-slate-900 mt-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <form action="/shop" className="flex flex-1 max-w-md gap-2">
             <input
               type="text"
@@ -143,7 +143,7 @@ export default async function ShopPage({ searchParams }: Props) {
         </div>
 
         {/* TEAM FILTER */}
-        <div className="mt-6 flex flex-wrap gap-2">
+        <div className="text-slate-800 mt-6 flex flex-wrap gap-2">
           <Link
             href={`/shop${buildQuery({ category: categorySlug, search: searchQuery, sort })}`}
             className={`rounded-full px-4 py-1.5 text-xs font-bold border transition-colors ${
@@ -169,7 +169,7 @@ export default async function ShopPage({ searchParams }: Props) {
 
         {/* PRODUCTS */}
         {products.length > 0 ? (
-          <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="text-slate-900 mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {products.map((product) => (
               <ProductCard
                 key={product.id}
