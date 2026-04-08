@@ -15,11 +15,14 @@ export async function POST(req: Request) {
       where: { email },
     });
 
-    if (!user) {
+    // ✅ Fix: Check if user exists AND has a password
+    // OAuth users (Google/Apple) have a null password field in the DB
+    if (!user || !user.password) {
       return Response.json({ error: "Invalid email or password" }, { status: 401 });
     }
 
     // 2. Compare password with hashed password
+    // TypeScript now knows user.password is a string here
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
       return Response.json({ error: "Invalid email or password" }, { status: 401 });
@@ -27,7 +30,7 @@ export async function POST(req: Request) {
 
     // 3. Generate JWT token
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role }, // include role if needed
+      { id: user.id, email: user.email, role: user.role }, 
       JWT_SECRET,
       { expiresIn: JWT_EXPIRES_IN }
     );
