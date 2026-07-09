@@ -197,7 +197,7 @@ export default function HeroSlideshow({ products }: { products: SlideProduct[] }
             <div
               key={current}
               className="h-full bg-white/50 rounded-full"
-              style={{ animation: "hero-progress 4s linear forwards" }}
+              style={{ animation: "hero-progress 10s linear forwards" }}
             />
           </div>
         )}
