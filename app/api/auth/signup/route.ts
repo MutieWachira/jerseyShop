@@ -9,8 +9,9 @@ const JWT_EXPIRES_IN = "7d";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    const normalizedEmail = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
 
-    if (!body.email || !body.password || !body.name) {
+    if (!normalizedEmail || !body.password || !body.name) {
       return Response.json(
         { error: "Invalid input" },
         { status: 400 }
@@ -18,8 +19,13 @@ export async function POST(req: Request) {
     }
 
     // 1. Check if user exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: body.email },
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        email: {
+          equals: normalizedEmail,
+          mode: "insensitive",
+        },
+      },
     });
 
     if (existingUser) {
@@ -36,7 +42,7 @@ export async function POST(req: Request) {
     const user = await prisma.user.create({
       data: {
         name: body.name,
-        email: body.email,
+        email: normalizedEmail,
         password: hashedPassword,
         role: body.role || "USER", // default role USER
       },

@@ -9,10 +9,20 @@ const JWT_EXPIRES_IN = "7d"; // Token valid for 7 days
 export async function POST(req: Request) {
   try {
     const { email, password } = await req.json();
+    const normalizedEmail = typeof email === "string" ? email.trim().toLowerCase() : "";
+
+    if (!normalizedEmail || typeof password !== "string") {
+      return Response.json({ error: "Invalid email or password" }, { status: 401 });
+    }
 
     // 1. Find user in the database
-    const user = await prisma.user.findUnique({
-      where: { email },
+    const user = await prisma.user.findFirst({
+      where: {
+        email: {
+          equals: normalizedEmail,
+          mode: "insensitive",
+        },
+      },
     });
 
     // ✅ Fix: Check if user exists AND has a password

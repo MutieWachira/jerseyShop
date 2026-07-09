@@ -42,26 +42,43 @@ export const authOptions: NextAuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        const normalizedEmail = credentials?.email?.trim().toLowerCase();
+        const providedPassword = credentials?.password;
+
+        if (!normalizedEmail || !providedPassword) {
           throw new Error("Invalid credentials");
         }
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email.toLowerCase() },
+        const user = await prisma.user.findFirst({
+          where: {
+            email: {
+              equals: normalizedEmail,
+              mode: "insensitive",
+            },
+          },
         });
 
-        if (!user) throw new Error("User not found");
-        if (!user.password) throw new Error("Use Google/Apple login");
+        if (!user) {
+          console.warn("[auth] credentials authorize: user not found", { email: normalizedEmail });
+          throw new Error("User not found");
+        }
+        if (!user.password) {
+          console.warn("[auth] credentials authorize: oauth-only account", { email: normalizedEmail });
+          throw new Error("Use Google/Apple login");
+        }
 
-        const passwordMatch = await bcrypt.compare(credentials.password, user.password);
+        const passwordMatch = await bcrypt.compare(providedPassword, user.password);
 
-        if (!passwordMatch) throw new Error("Invalid password");
+        if (!passwordMatch) {
+          console.warn("[auth] credentials authorize: invalid password", { email: normalizedEmail });
+          throw new Error("Invalid password");
+        }
 
         return {
           id: user.id,
           name: user.name,
           email: user.email,
-          role: user.role, 
+          role: user.role,
         };
       },
     }),
