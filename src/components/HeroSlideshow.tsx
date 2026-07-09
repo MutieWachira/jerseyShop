@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { normalizeProductImage, shouldRequestSignedImageUrl } from "@/src/lib/image";
 
 interface SlideProduct {
   id: number;
@@ -33,6 +34,11 @@ function useProgressAnimation() {
 export default function HeroSlideshow({ products }: { products: SlideProduct[] }) {
   const [current, setCurrent] = useState(0);
   const [paused,  setPaused]  = useState(false);
+  const [imageUrl, setImageUrl] = useState(() => {
+    if (!products[0]?.image) return "/placeholder-jersey.png";
+    if (shouldRequestSignedImageUrl(products[0].image)) return "/placeholder-jersey.png";
+    return normalizeProductImage(products[0].image) || "/placeholder-jersey.png";
+  });
 
   useProgressAnimation();
 
@@ -50,6 +56,36 @@ export default function HeroSlideshow({ products }: { products: SlideProduct[] }
     const t = setInterval(next, 4000);
     return () => clearInterval(t);
   }, [paused, next, total]);
+
+  useEffect(() => {
+    const currentImage = products[current]?.image;
+    if (!currentImage) {
+      setImageUrl("/placeholder-jersey.png");
+      return;
+    }
+
+    if (!shouldRequestSignedImageUrl(currentImage)) {
+      setImageUrl(normalizeProductImage(currentImage) || "/placeholder-jersey.png");
+      return;
+    }
+
+    let isMounted = true;
+
+    const resolveImage = async () => {
+      try {
+        const res = await fetch(`/api/images?key=${encodeURIComponent(currentImage)}`);
+        const data = await res.json();
+        if (isMounted) setImageUrl(data.url || "/placeholder-jersey.png");
+      } catch {
+        if (isMounted) setImageUrl("/placeholder-jersey.png");
+      }
+    };
+
+    resolveImage();
+    return () => {
+      isMounted = false;
+    };
+  }, [current, products]);
 
   if (total === 0) return null;
 
@@ -101,7 +137,7 @@ export default function HeroSlideshow({ products }: { products: SlideProduct[] }
             {product.image ? (
               <Image
                 key={product.id}
-                src={product.image}
+                src={imageUrl}
                 alt={product.name}
                 fill
                 className="object-cover transition-opacity duration-500"

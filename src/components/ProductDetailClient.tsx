@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useCart } from "@/src/context/CartContext";
+import { normalizeProductImage, shouldRequestSignedImageUrl } from "@/src/lib/image";
 
 interface Variant {
   id: string;
@@ -22,14 +23,18 @@ interface Product {
 
 export default function ProductDetailClient({ product }: { product: Product }) {
   const { addToCart } = useCart();
-  const [imageUrl, setImageUrl] = useState(product.image || "/placeholder-jersey.png");
+  const [imageUrl, setImageUrl] = useState(() => {
+    if (!product.image) return "/placeholder-jersey.png";
+    if (shouldRequestSignedImageUrl(product.image)) return "/placeholder-jersey.png";
+    return normalizeProductImage(product.image) || "/placeholder-jersey.png";
+  });
 
   useEffect(() => {
     let isMounted = true;
 
     const resolveImage = async () => {
-      if (!product.image || product.image.startsWith("http") || product.image.startsWith("/")) {
-        if (isMounted) setImageUrl(product.image || "/placeholder-jersey.png");
+      if (!product.image || !shouldRequestSignedImageUrl(product.image)) {
+        if (isMounted) setImageUrl(normalizeProductImage(product.image) || "/placeholder-jersey.png");
         return;
       }
 

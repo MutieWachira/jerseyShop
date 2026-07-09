@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useWishlist } from "@/src/context/WishlistContext";
+import { normalizeProductImage, shouldRequestSignedImageUrl } from "@/src/lib/image";
 
 type ProductCardProps = {
   id: number;
@@ -25,14 +26,18 @@ export default function ProductCard({
 }: ProductCardProps) {
   const { toggleWishlist, isInWishlist } = useWishlist();
   const isFavourite = isInWishlist(id);
-  const [imageUrl, setImageUrl] = useState(image || "/placeholder-jersey.png");
+  const [imageUrl, setImageUrl] = useState(() => {
+    if (!image) return "/placeholder-jersey.png";
+    if (shouldRequestSignedImageUrl(image)) return "/placeholder-jersey.png";
+    return normalizeProductImage(image) || "/placeholder-jersey.png";
+  });
 
   useEffect(() => {
     let isMounted = true;
 
     const resolveImage = async () => {
-      if (!image || image.startsWith("http") || image.startsWith("/")) {
-        if (isMounted) setImageUrl(image || "/placeholder-jersey.png");
+      if (!image || !shouldRequestSignedImageUrl(image)) {
+        if (isMounted) setImageUrl(normalizeProductImage(image) || "/placeholder-jersey.png");
         return;
       }
 

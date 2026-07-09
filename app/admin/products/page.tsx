@@ -4,16 +4,21 @@ import axios from "axios";
 import Link from "next/link";
 import AdminSidebar from "@/app/admin/components/AdminSidebar";
 import { Edit3, Trash2, PackageSearch, Loader2 } from "lucide-react";
+import { normalizeProductImage, shouldRequestSignedImageUrl } from "@/src/lib/image";
 
 function ProductImageCell({ image, alt }: { image?: string | null; alt: string }) {
-  const [src, setSrc] = useState(image || "/placeholder-jersey.png");
+  const [src, setSrc] = useState(() => {
+    if (!image) return "/placeholder-jersey.png";
+    if (shouldRequestSignedImageUrl(image)) return "/placeholder-jersey.png";
+    return normalizeProductImage(image) || "/placeholder-jersey.png";
+  });
 
   useEffect(() => {
     let isMounted = true;
 
     const resolveImage = async () => {
-      if (!image || image.startsWith("http") || image.startsWith("/")) {
-        if (isMounted) setSrc(image || "/placeholder-jersey.png");
+      if (!image || !shouldRequestSignedImageUrl(image)) {
+        if (isMounted) setSrc(normalizeProductImage(image) || "/placeholder-jersey.png");
         return;
       }
 
