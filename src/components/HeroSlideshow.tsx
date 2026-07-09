@@ -32,6 +32,7 @@ function useProgressAnimation() {
 }
 
 export default function HeroSlideshow({ products }: { products: SlideProduct[] }) {
+  const slideIntervalMs = 20000;
   const [current, setCurrent] = useState(0);
   const [paused,  setPaused]  = useState(false);
   const [imageUrl, setImageUrl] = useState(() => {
@@ -50,12 +51,12 @@ export default function HeroSlideshow({ products }: { products: SlideProduct[] }
 
   const prev = () => setCurrent((c) => (c - 1 + total) % total);
 
-  // Auto-advance every 4 seconds unless hovered
+  // Auto-advance every 20 seconds unless hovered
   useEffect(() => {
     if (paused || total <= 1) return;
-    const t = setInterval(next, 4000);
+    const t = setInterval(next, slideIntervalMs);
     return () => clearInterval(t);
-  }, [paused, next, total]);
+  }, [paused, next, total, slideIntervalMs]);
 
   useEffect(() => {
     const currentImage = products[current]?.image;
@@ -197,7 +198,7 @@ export default function HeroSlideshow({ products }: { products: SlideProduct[] }
             <div
               key={current}
               className="h-full bg-white/50 rounded-full"
-              style={{ animation: "hero-progress 10s linear forwards" }}
+              style={{ animation: `hero-progress ${slideIntervalMs}ms linear forwards` }}
             />
           </div>
         )}
