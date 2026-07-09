@@ -56,14 +56,32 @@ export default function NewProduct() {
     try {
       let imagePath = "";
 
-      // 1. Upload Image
-      const formData = new FormData();
-      formData.append("file", imageFile);
-      const upload = await fetch("/api/upload", {
+      // 1. Request a signed upload URL
+      const uploadRequest = await fetch("/api/upload", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileName: imageFile.name,
+          contentType: imageFile.type,
+        }),
       });
-      const uploadData = await upload.json();
+
+      const uploadData = await uploadRequest.json();
+      if (!uploadRequest.ok || !uploadData.uploadUrl) {
+        throw new Error(uploadData.error || "Failed to get upload URL");
+      }
+
+      // 2. Upload the file directly to S3 with the signed URL
+      const uploadToS3 = await fetch(uploadData.uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": imageFile.type },
+        body: imageFile,
+      });
+
+      if (!uploadToS3.ok) {
+        throw new Error("Image upload to S3 failed");
+      }
+
       imagePath = uploadData.path;
 
       // 2. Format Variants for the API logic

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useWishlist } from "@/src/context/WishlistContext";
 
@@ -25,6 +25,31 @@ export default function ProductCard({
 }: ProductCardProps) {
   const { toggleWishlist, isInWishlist } = useWishlist();
   const isFavourite = isInWishlist(id);
+  const [imageUrl, setImageUrl] = useState(image || "/placeholder-jersey.png");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const resolveImage = async () => {
+      if (!image || image.startsWith("http") || image.startsWith("/")) {
+        if (isMounted) setImageUrl(image || "/placeholder-jersey.png");
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/images?key=${encodeURIComponent(image)}`);
+        const data = await res.json();
+        if (isMounted) setImageUrl(data.url || "/placeholder-jersey.png");
+      } catch {
+        if (isMounted) setImageUrl("/placeholder-jersey.png");
+      }
+    };
+
+    resolveImage();
+    return () => {
+      isMounted = false;
+    };
+  }, [image]);
 
   return (
     <div className="group flex flex-col h-full rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
@@ -32,7 +57,7 @@ export default function ProductCard({
       {/* Product Image Section */}
       <Link href={`/shop/${id}`} className="relative block overflow-hidden rounded-2xl aspect-[4/3] bg-slate-100">
         <img
-          src={image || "/placeholder-jersey.png"} 
+          src={imageUrl}
           alt={name}
           className="h-full w-full object-fit transition-transform duration-500 group-hover:scale-110"
         />

@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
+import { useEffect, useState } from "react";
 import { useCart } from "@/src/context/CartContext";
 
 interface Variant {
@@ -23,6 +22,31 @@ interface Product {
 
 export default function ProductDetailClient({ product }: { product: Product }) {
   const { addToCart } = useCart();
+  const [imageUrl, setImageUrl] = useState(product.image || "/placeholder-jersey.png");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const resolveImage = async () => {
+      if (!product.image || product.image.startsWith("http") || product.image.startsWith("/")) {
+        if (isMounted) setImageUrl(product.image || "/placeholder-jersey.png");
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/images?key=${encodeURIComponent(product.image)}`);
+        const data = await res.json();
+        if (isMounted) setImageUrl(data.url || "/placeholder-jersey.png");
+      } catch {
+        if (isMounted) setImageUrl("/placeholder-jersey.png");
+      }
+    };
+
+    resolveImage();
+    return () => {
+      isMounted = false;
+    };
+  }, [product.image]);
 
   const availableSizes    = [...new Set(product.variants.map((v) => v.size))];
   const availableVersions = [...new Set(product.variants.map((v) => v.version))];
@@ -69,13 +93,10 @@ export default function ProductDetailClient({ product }: { product: Product }) {
           {/* ── Product Image ── */}
           <div className="flex-1 relative rounded-2xl overflow-hidden bg-slate-100 min-h-80">
             {product.image ? (
-              <Image
-                src={product.image}
+              <img
+                src={imageUrl}
                 alt={product.name}
-                fill
-                className="object-cover"
-                sizes="(max-width: 768px) 100vw, 50vw"
-                priority
+                className="h-full w-full object-cover"
               />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center">

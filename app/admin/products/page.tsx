@@ -5,6 +5,42 @@ import Link from "next/link";
 import AdminSidebar from "@/app/admin/components/AdminSidebar";
 import { Edit3, Trash2, PackageSearch, Loader2 } from "lucide-react";
 
+function ProductImageCell({ image, alt }: { image?: string | null; alt: string }) {
+  const [src, setSrc] = useState(image || "/placeholder-jersey.png");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const resolveImage = async () => {
+      if (!image || image.startsWith("http") || image.startsWith("/")) {
+        if (isMounted) setSrc(image || "/placeholder-jersey.png");
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/images?key=${encodeURIComponent(image)}`);
+        const data = await res.json();
+        if (isMounted) setSrc(data.url || "/placeholder-jersey.png");
+      } catch {
+        if (isMounted) setSrc("/placeholder-jersey.png");
+      }
+    };
+
+    resolveImage();
+    return () => {
+      isMounted = false;
+    };
+  }, [image]);
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="h-14 w-14 object-cover rounded-2xl border border-slate-100 bg-white"
+    />
+  );
+}
+
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,11 +123,7 @@ export default function AdminProductsPage() {
                       <tr key={p.id} className="hover:bg-slate-50/50 transition">
                         <td className="p-6">
                           <div className="flex items-center gap-4">
-                            <img
-                              src={p.image || "/placeholder-jersey.png"}
-                              alt={p.name}
-                              className="h-14 w-14 object-cover rounded-2xl border border-slate-100 bg-white"
-                            />
+                            <ProductImageCell image={p.image} alt={p.name} />
                             <span className="text-sm font-bold text-slate-900">{p.name}</span>
                           </div>
                         </td>
