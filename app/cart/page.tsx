@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
+import Image from "next/image"; // retained for potential other uses
+import CartItemImage from "@/src/components/CartItemImage";
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Award } from "lucide-react";
 import { useCart, CartItem, CompetitionBadge } from "@/src/context/CartContext";
@@ -328,21 +329,7 @@ export default function CartPage() {
                   <div className="flex items-start gap-4">
 
                     {/* Thumbnail */}
-                    <div className="relative h-24 w-24 shrink-0 rounded-xl overflow-hidden bg-slate-100">
-                      {item.image ? (
-                        <Image
-                          src={item.image}
-                          alt={item.name}
-                          fill
-                          className="object-cover"
-                          sizes="96px"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 flex items-center justify-center text-slate-300 text-xs font-bold">
-                          No Image
-                        </div>
-                      )}
-                    </div>
+                    <CartItemImage image={item.image} name={item.name} />
 
                     <div className="flex-1 min-w-0">
                       <h2 className="font-black text-slate-900">{item.name}</h2>

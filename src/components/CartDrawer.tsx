@@ -1,6 +1,8 @@
 "use client";
 
 import { Award } from "lucide-react";
+// Image utilities are now used in the dedicated CartItemImage component
+import CartItemImage from "./CartItemImage";
 import Link from "next/link";
 import { useCart, CompetitionBadge } from "@/src/context/CartContext";
 
@@ -52,6 +54,8 @@ export default function CartDrawer() {
             className="rounded-2xl border border-slate-100 p-3"
           >
             <div className="flex justify-between gap-3">
+                {/* Image thumbnail – use same logic as ProductCard */}
+                <CartItemImage image={item.image} name={item.name} />
               <div className="flex-1 min-w-0">
                 <p className="font-black text-slate-900 text-sm truncate">{item.name}</p>
 
