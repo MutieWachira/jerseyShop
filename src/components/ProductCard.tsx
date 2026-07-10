@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useWishlist } from "@/src/context/WishlistContext";
-import { normalizeProductImage, shouldRequestSignedImageUrl } from "@/src/lib/image";
+import { normalizeProductImage, resolveProductImageUrl, shouldRequestSignedImageUrl } from "@/src/lib/image";
 
 type ProductCardProps = {
   id: number;
@@ -36,18 +36,8 @@ export default function ProductCard({
     let isMounted = true;
 
     const resolveImage = async () => {
-      if (!image || !shouldRequestSignedImageUrl(image)) {
-        if (isMounted) setImageUrl(normalizeProductImage(image) || "/placeholder-jersey.png");
-        return;
-      }
-
-      try {
-        const res = await fetch(`/api/images?key=${encodeURIComponent(image)}`);
-        const data = await res.json();
-        if (isMounted) setImageUrl(data.url || "/placeholder-jersey.png");
-      } catch {
-        if (isMounted) setImageUrl("/placeholder-jersey.png");
-      }
+      const resolvedUrl = await resolveProductImageUrl(image);
+      if (isMounted) setImageUrl(resolvedUrl);
     };
 
     resolveImage();
@@ -64,6 +54,8 @@ export default function ProductCard({
         <img
           src={imageUrl}
           alt={name}
+          loading="lazy"
+          decoding="async"
           className="h-full w-full object-fit transition-transform duration-500 group-hover:scale-110"
         />
         

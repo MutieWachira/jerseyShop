@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   serverExternalPackages: ['@prisma/client'],
   images: {
+    formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       {
         protocol: 'https',

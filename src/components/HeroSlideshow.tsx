@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -35,11 +35,7 @@ export default function HeroSlideshow({ products }: { products: SlideProduct[] }
   const slideIntervalMs = 20000;
   const [current, setCurrent] = useState(0);
   const [paused,  setPaused]  = useState(false);
-  const [imageUrl, setImageUrl] = useState(() => {
-    if (!products[0]?.image) return "/placeholder-jersey.png";
-    if (shouldRequestSignedImageUrl(products[0].image)) return "/placeholder-jersey.png";
-    return normalizeProductImage(products[0].image) || "/placeholder-jersey.png";
-  });
+  const [resolvedImages, setResolvedImages] = useState<Record<number, string>>({});
 
   useProgressAnimation();
 
@@ -58,15 +54,25 @@ export default function HeroSlideshow({ products }: { products: SlideProduct[] }
     return () => clearInterval(t);
   }, [paused, next, total, slideIntervalMs]);
 
-  useEffect(() => {
-    const currentImage = products[current]?.image;
-    if (!currentImage) {
-      setImageUrl("/placeholder-jersey.png");
-      return;
+  const currentProduct = products[current];
+  const currentImage = currentProduct?.image;
+
+  const imageUrl = useMemo(() => {
+    if (!currentProduct) return "/placeholder-jersey.png";
+
+    const cachedUrl = resolvedImages[currentProduct.id];
+    if (cachedUrl) return cachedUrl;
+
+    if (!currentImage) return "/placeholder-jersey.png";
+    if (!shouldRequestSignedImageUrl(currentImage)) {
+      return normalizeProductImage(currentImage) || "/placeholder-jersey.png";
     }
 
-    if (!shouldRequestSignedImageUrl(currentImage)) {
-      setImageUrl(normalizeProductImage(currentImage) || "/placeholder-jersey.png");
+    return "/placeholder-jersey.png";
+  }, [currentProduct, currentImage, resolvedImages]);
+
+  useEffect(() => {
+    if (!currentProduct?.image || !shouldRequestSignedImageUrl(currentImage) || resolvedImages[currentProduct.id]) {
       return;
     }
 
@@ -76,9 +82,14 @@ export default function HeroSlideshow({ products }: { products: SlideProduct[] }
       try {
         const res = await fetch(`/api/images?key=${encodeURIComponent(currentImage)}`);
         const data = await res.json();
-        if (isMounted) setImageUrl(data.url || "/placeholder-jersey.png");
+        const resolvedUrl = data.url || "/placeholder-jersey.png";
+        if (isMounted) {
+          setResolvedImages((prev) => ({ ...prev, [currentProduct.id]: resolvedUrl }));
+        }
       } catch {
-        if (isMounted) setImageUrl("/placeholder-jersey.png");
+        if (isMounted) {
+          setResolvedImages((prev) => ({ ...prev, [currentProduct.id]: "/placeholder-jersey.png" }));
+        }
       }
     };
 
@@ -86,11 +97,29 @@ export default function HeroSlideshow({ products }: { products: SlideProduct[] }
     return () => {
       isMounted = false;
     };
-  }, [current, products]);
+  }, [currentProduct, currentImage, resolvedImages]);
+
+  useEffect(() => {
+    const nextProducts = products.slice(current, current + 2);
+
+    nextProducts.forEach((product) => {
+      if (!product.image || !shouldRequestSignedImageUrl(product.image) || resolvedImages[product.id]) {
+        return;
+      }
+
+      void fetch(`/api/images?key=${encodeURIComponent(product.image)}`)
+        .then(async (res) => {
+          const data = await res.json();
+          const resolvedUrl = data.url || "/placeholder-jersey.png";
+          setResolvedImages((prev) => ({ ...prev, [product.id]: resolvedUrl }));
+        })
+        .catch(() => undefined);
+    });
+  }, [current, products, resolvedImages]);
 
   if (total === 0) return null;
 
-  const product = products[current];
+  const product = currentProduct;
 
   return (
     <div
@@ -143,7 +172,10 @@ export default function HeroSlideshow({ products }: { products: SlideProduct[] }
                 fill
                 className="object-cover transition-opacity duration-500"
                 sizes="(max-width: 768px) 100vw, 50vw"
+                quality={85}
                 priority
+                placeholder="blur"
+                blurDataURL="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxIiBoZWlnaHQ9IjEiPjxyZWN0IHdpZHRoPSIxIiBoZWlnaHQ9IjEiIGZpbGw9IiNlMmU4ZTgiLz48L3N2Zz4="
               />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center text-slate-400 font-bold text-sm">

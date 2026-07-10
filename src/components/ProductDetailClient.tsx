@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useCart } from "@/src/context/CartContext";
-import { normalizeProductImage, shouldRequestSignedImageUrl } from "@/src/lib/image";
+import { normalizeProductImage, resolveProductImageUrl, shouldRequestSignedImageUrl } from "@/src/lib/image";
 
 interface Variant {
   id: string;
@@ -33,18 +33,8 @@ export default function ProductDetailClient({ product }: { product: Product }) {
     let isMounted = true;
 
     const resolveImage = async () => {
-      if (!product.image || !shouldRequestSignedImageUrl(product.image)) {
-        if (isMounted) setImageUrl(normalizeProductImage(product.image) || "/placeholder-jersey.png");
-        return;
-      }
-
-      try {
-        const res = await fetch(`/api/images?key=${encodeURIComponent(product.image)}`);
-        const data = await res.json();
-        if (isMounted) setImageUrl(data.url || "/placeholder-jersey.png");
-      } catch {
-        if (isMounted) setImageUrl("/placeholder-jersey.png");
-      }
+      const resolvedUrl = await resolveProductImageUrl(product.image);
+      if (isMounted) setImageUrl(resolvedUrl);
     };
 
     resolveImage();
@@ -101,6 +91,9 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               <img
                 src={imageUrl}
                 alt={product.name}
+                loading="eager"
+                decoding="async"
+                fetchPriority="high"
                 className="h-full w-full object-cover"
               />
             ) : (
