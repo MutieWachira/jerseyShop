@@ -39,6 +39,7 @@ const COMPETITION_BADGES: {
   { value: "LA_LIGA",          label: "La Liga",          pill: "bg-rose-50   text-rose-700   border-rose-200",   dot: "bg-rose-600" },
   { value: "BUNDESLIGA",       label: "Bundesliga",       pill: "bg-red-50    text-red-800    border-red-200",    dot: "bg-red-700" },
   { value: "LIGUE_1",          label: "Ligue 1",          pill: "bg-indigo-50 text-indigo-700 border-indigo-200", dot: "bg-indigo-600" },
+  { value: "WORLD_CUP",        label: "World Cup",        pill: "bg-emerald-50 text-emerald-700 border-emerald-200", dot: "bg-emerald-600" },
 ];
 
 function getBadge(value: CompetitionBadge) {
@@ -139,15 +140,15 @@ function CustomisationEditor({ item }: { item: CartItem }) {
         <div className="px-4 py-5 space-y-5 bg-white">
 
           {/* ── Pricing legend ── */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-2 ">
             {[
               { label: "Competition Badge", price: BADGE_PRICE },
               { label: "Player Name",       price: NAME_PRICE  },
               { label: "Shirt Number",      price: NUMBER_PRICE },
             ].map(({ label, price }) => (
               <div key={label} className="rounded-xl border border-slate-100 bg-slate-50 p-2.5 text-center">
-                <p className="text-[10px] font-bold text-slate-400 leading-tight">{label}</p>
-                <p className="text-sm font-black text-slate-900 mt-0.5">+Ksh {price}</p>
+                <p className="text-[10px] font-bold text-slate-900 leading-tight">{label}</p>
+                <p className="text-sm font-black text-slate-700 mt-0.5">+Ksh {price}</p>
               </div>
             ))}
           </div>
@@ -158,9 +159,9 @@ function CustomisationEditor({ item }: { item: CartItem }) {
               <label className="text-xs font-black uppercase tracking-wide text-slate-700">
                 Competition Badge — Left Sleeve
               </label>
-              <span className="text-[10px] font-black text-slate-400">+Ksh {BADGE_PRICE}</span>
+              <span className="text-[10px] font-black text-slate-700">+Ksh {BADGE_PRICE}</span>
             </div>
-            <p className="text-[10px] text-slate-400">
+            <p className="text-[10px] text-slate-700">
               Select the patch to be printed on the left sleeve
             </p>
             <div className="grid grid-cols-2 gap-2">
@@ -169,7 +170,7 @@ function CustomisationEditor({ item }: { item: CartItem }) {
                   key={b.value}
                   type="button"
                   onClick={() => { setBadge(b.value); setSaved(false); }}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition text-left
+                  className={`flex text-slate-700 items-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold transition text-left
                     ${badge === b.value
                       ? "ring-2 ring-offset-1 ring-slate-900 " + b.pill
                       : b.pill + " opacity-60 hover:opacity-100"
@@ -187,14 +188,14 @@ function CustomisationEditor({ item }: { item: CartItem }) {
             <label className="text-xs font-black uppercase tracking-wide text-slate-700">
               Name & Number — Back of Jersey
             </label>
-            <p className="text-[10px] text-slate-400">
+            <p className="text-[10px] text-slate-700">
               Leave blank for no printing
             </p>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-black text-slate-500 uppercase">Player Name</label>
-                  <span className="text-[10px] font-black text-slate-400">+Ksh {NAME_PRICE}</span>
+                  <label className="text-[10px] font-black text-slate-700 uppercase">Player Name</label>
+                  <span className="text-[10px] font-black text-slate-600">+Ksh {NAME_PRICE}</span>
                 </div>
                 <input
                   type="text"
@@ -205,14 +206,14 @@ function CustomisationEditor({ item }: { item: CartItem }) {
                     setPlayerName(e.target.value.toUpperCase());
                   }}
                   placeholder="e.g. SALAH"
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 placeholder:font-normal placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300 uppercase"
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-700 placeholder:font-normal placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300 uppercase"
                 />
                 <p className="text-[10px] text-slate-400">{playerName.length}/12</p>
               </div>
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-black text-slate-500 uppercase">Shirt Number</label>
-                  <span className="text-[10px] font-black text-slate-400">+Ksh {NUMBER_PRICE}</span>
+                  <label className="text-[10px] font-black text-slate-700 uppercase">Shirt Number</label>
+                  <span className="text-[10px] font-black text-slate-600">+Ksh {NUMBER_PRICE}</span>
                 </div>
                 <input
                   type="number"
@@ -224,7 +225,7 @@ function CustomisationEditor({ item }: { item: CartItem }) {
                     setPlayerNumber(e.target.value);
                   }}
                   placeholder="e.g. 11"
-                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-900 placeholder:font-normal placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-700 placeholder:font-normal placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-300"
                 />
               </div>
             </div>
@@ -348,7 +349,7 @@ export default function CartPage() {
 
                       {/* Item price + customisation cost */}
                       <div className="mt-1 flex items-center gap-2 flex-wrap">
-                        <p className="text-sm font-black text-slate-900">
+                        <p className="text-sm font-black text-slate-700">
                           Ksh {item.price.toLocaleString()}
                         </p>
                         {itemCustomCost > 0 && (
@@ -405,8 +406,8 @@ export default function CartPage() {
 
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Items ({totalItems})</span>
-                  <span className="font-bold">Ksh {jerseyTotal.toLocaleString()}</span>
+                  <span className="text-slate-700">Items ({totalItems})</span>
+                  <span className="text-slate-700">Ksh {jerseyTotal.toLocaleString()}</span>
                 </div>
 
                 {/* Customisation line items */}
@@ -415,10 +416,10 @@ export default function CartPage() {
                   if (!cost) return null;
                   return (
                     <div key={`custom-${item.id}-${item.size}-${item.version}`} className="flex justify-between text-xs">
-                      <span className="text-slate-400 truncate max-w-[160px]">
+                      <span className="text-slate-700 truncate max-w-[160px]">
                         {item.name} customisation
                       </span>
-                      <span className="font-bold text-slate-600 shrink-0 ml-2">
+                      <span className="font-bold text-slate-700 shrink-0 ml-2">
                         +Ksh {cost}
                       </span>
                     </div>
@@ -427,7 +428,7 @@ export default function CartPage() {
 
                 {customisationTotal > 0 && (
                   <div className="flex justify-between text-sm border-t border-slate-100 pt-3">
-                    <span className="text-slate-500">Customisation total</span>
+                    <span className="text-slate-700">Customisation total</span>
                     <span className="font-bold text-emerald-700">
                       +Ksh {customisationTotal.toLocaleString()}
                     </span>

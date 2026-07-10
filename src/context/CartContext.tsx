@@ -14,7 +14,7 @@ import { useSession } from "next-auth/react";
 
 export type CompetitionBadge =
   | "PREMIER_LEAGUE" | "CHAMPIONS_LEAGUE" | "EUROPA_LEAGUE"
-  | "FA_CUP" | "SERIE_A" | "LA_LIGA" | "BUNDESLIGA" | "LIGUE_1" | "NONE";
+  | "FA_CUP" | "SERIE_A" | "LA_LIGA" | "BUNDESLIGA" | "LIGUE_1" | "NONE" | "WORLD_CUP";
 
 export type CartItem = {
   id:        number;

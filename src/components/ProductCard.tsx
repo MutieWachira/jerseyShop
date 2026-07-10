@@ -76,7 +76,7 @@ export default function ProductCard({
 
         <div className="mt-4 flex items-center justify-between">
           <div className="flex flex-col">
-            <span className="text-xs font-bold text-slate-400 uppercase">Price</span>
+            <span className="text-xs font-bold text-slate-700 uppercase">Price</span>
             <span className="text-lg font-black text-slate-900">Ksh {price.toLocaleString()}</span>
           </div>
 
@@ -107,7 +107,7 @@ export default function ProductCard({
 
         <Link
           href={`/shop/${id}`}
-          className="mt-4 text-center py-2 rounded-xl text-xs font-bold text-slate-400 border border-transparent hover:border-slate-100 hover:text-slate-900 transition-all"
+          className="mt-4 text-center py-2 rounded-xl text-xs font-bold text-slate-600 border border-transparent hover:border-slate-100 hover:text-slate-900 transition-all"
         >
           View Full Details
         </Link>

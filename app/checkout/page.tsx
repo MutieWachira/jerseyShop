@@ -43,6 +43,7 @@ const BADGE_LABELS: Record<CompetitionBadge, string> = {
   LA_LIGA:          "La Liga",
   BUNDESLIGA:       "Bundesliga",
   LIGUE_1:          "Ligue 1",
+  WORLD_CUP:        "World Cup",
 };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -119,7 +120,7 @@ function OrderSummaryItem({ item, customCost }: { item: CartItem; customCost: nu
         {customCost > 0 && (
           <div className="mt-1 space-y-0.5">
             {item.competitionBadge && item.competitionBadge !== "NONE" && (
-              <p className="text-[9px] text-slate-400 flex items-center gap-1"><Award size={8} /> {BADGE_LABELS[item.competitionBadge]} patch</p>
+              <p className="text-[9px] text-slate-400 flex items-center gap-1"><Award size={20} /> {BADGE_LABELS[item.competitionBadge]} patch</p>
             )}
             {item.playerNumber && (
               <p className="text-[9px] text-slate-400">#{item.playerNumber}{item.playerName ? ` · ${item.playerName}` : ""}</p>
@@ -572,12 +573,12 @@ export default function CheckoutPage() {
               })}
             </div>
 
-            <hr className="border-slate-100" />
+            <hr className="border-slate-100 text-slate-800" />
 
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-slate-500">Jerseys</span>
-                <span className="font-bold">Ksh {jerseyTotal.toLocaleString()}</span>
+                <span className="text-slate-700">Jerseys</span>
+                <span className="font-bold text-slate-800">Ksh {jerseyTotal.toLocaleString()}</span>
               </div>
               {customisationTotal > 0 && (
                 <div className="flex justify-between">

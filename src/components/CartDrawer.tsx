@@ -16,6 +16,7 @@ const BADGE_LABELS: Record<CompetitionBadge, string> = {
   LA_LIGA:           "La Liga",
   BUNDESLIGA:        "Bundesliga",
   LIGUE_1:           "Ligue 1",
+  WORLD_CUP:         "World Cup",
 };
 
 const BADGE_COLORS: Record<CompetitionBadge, string> = {
@@ -28,6 +29,7 @@ const BADGE_COLORS: Record<CompetitionBadge, string> = {
   LA_LIGA:           "bg-rose-100    text-rose-700",
   BUNDESLIGA:        "bg-red-100     text-red-800",
   LIGUE_1:           "bg-indigo-100  text-indigo-700",
+  WORLD_CUP:         "bg-yellow-100  text-yellow-700",
 };
 
 export default function CartDrawer() {
@@ -76,7 +78,7 @@ export default function CartDrawer() {
                 {/* Customisation summary */}
                 {(item.competitionBadge && item.competitionBadge !== "NONE") && (
                   <div className={`mt-1.5 inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full ${BADGE_COLORS[item.competitionBadge]}`}>
-                    <Award size={9} />
+                    <Award size={20} />
                     {BADGE_LABELS[item.competitionBadge]}
                   </div>
                 )}
