@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
+import { useState, useEffect } from "react";
 import { useCart, CartItem, CompetitionBadge } from "@/src/context/CartContext";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -14,6 +13,11 @@ import {
   Tag,
   X,
 } from "lucide-react";
+import {
+  normalizeProductImage,
+  resolveProductImageUrl,
+  shouldRequestSignedImageUrl,
+} from "@/src/lib/image";
 
 // ─── Pricing ──────────────────────────────────────────────────────────────────
 
@@ -71,6 +75,63 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div className="space-y-1.5">
       <label className="text-xs font-black uppercase tracking-wide text-slate-600">{label}</label>
       {children}
+    </div>
+  );
+}
+
+// ─── Order Summary Item ─────────────────────────────────────────────────────────
+
+function OrderSummaryItem({ item, customCost }: { item: CartItem; customCost: number }) {
+  const [imageUrl, setImageUrl] = useState<string>(() => {
+    if (!item.image) return "/placeholder-jersey.png";
+    if (shouldRequestSignedImageUrl(item.image)) return "/placeholder-jersey.png";
+    return normalizeProductImage(item.image) || "/placeholder-jersey.png";
+  });
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const resolved = await resolveProductImageUrl(item.image);
+      if (mounted) setImageUrl(resolved);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [item.image]);
+
+  return (
+    <div className="flex gap-3">
+      <div className="relative h-12 w-12 shrink-0 rounded-xl overflow-hidden bg-slate-100">
+        <img
+          src={imageUrl}
+          alt={item.name}
+          loading="lazy"
+          decoding="async"
+          className="object-cover w-full h-full"
+        />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-black text-slate-900 truncate">{item.name}</p>
+        <div className="flex gap-1 flex-wrap mt-0.5">
+          {item.size    && <span className="text-[9px] font-black uppercase bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">{item.size}</span>}
+          {item.version && <span className="text-[9px] font-black uppercase bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">{item.version}</span>}
+        </div>
+        {customCost > 0 && (
+          <div className="mt-1 space-y-0.5">
+            {item.competitionBadge && item.competitionBadge !== "NONE" && (
+              <p className="text-[9px] text-slate-400 flex items-center gap-1"><Award size={8} /> {BADGE_LABELS[item.competitionBadge]} patch</p>
+            )}
+            {item.playerNumber && (
+              <p className="text-[9px] text-slate-400">#{item.playerNumber}{item.playerName ? ` · ${item.playerName}` : ""}</p>
+            )}
+          </div>
+        )}
+      </div>
+      <div className="text-right shrink-0">
+        <p className="text-xs font-black text-slate-900">Ksh {(item.price * item.quantity).toLocaleString()}</p>
+        <p className="text-[9px] text-slate-400">×{item.quantity}</p>
+        {customCost > 0 && <p className="text-[9px] font-black text-emerald-600">+Ksh {customCost}</p>}
+      </div>
     </div>
   );
 }
@@ -506,36 +567,7 @@ export default function CheckoutPage() {
               {cart.map((item) => {
                 const customCost = getCustomisationCost(item);
                 return (
-                  <div key={`${item.id}-${item.size}-${item.version}`} className="flex gap-3">
-                    <div className="relative h-12 w-12 shrink-0 rounded-xl overflow-hidden bg-slate-100">
-                      {item.image
-                        ? <Image src={item.image} alt={item.name} fill className="object-cover" sizes="48px" />
-                        : <div className="absolute inset-0 bg-slate-100" />
-                      }
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-black text-slate-900 truncate">{item.name}</p>
-                      <div className="flex gap-1 flex-wrap mt-0.5">
-                        {item.size    && <span className="text-[9px] font-black uppercase bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">{item.size}</span>}
-                        {item.version && <span className="text-[9px] font-black uppercase bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">{item.version}</span>}
-                      </div>
-                      {customCost > 0 && (
-                        <div className="mt-1 space-y-0.5">
-                          {item.competitionBadge && item.competitionBadge !== "NONE" && (
-                            <p className="text-[9px] text-slate-400 flex items-center gap-1"><Award size={8} /> {BADGE_LABELS[item.competitionBadge]} patch</p>
-                          )}
-                          {item.playerNumber && (
-                            <p className="text-[9px] text-slate-400">#{item.playerNumber}{item.playerName ? ` · ${item.playerName}` : ""}</p>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-xs font-black text-slate-900">Ksh {(item.price * item.quantity).toLocaleString()}</p>
-                      <p className="text-[9px] text-slate-400">×{item.quantity}</p>
-                      {customCost > 0 && <p className="text-[9px] font-black text-emerald-600">+Ksh {customCost}</p>}
-                    </div>
-                  </div>
+                  <OrderSummaryItem key={`${item.id}-${item.size}-${item.version}`} item={item} customCost={customCost} />
                 );
               })}
             </div>
