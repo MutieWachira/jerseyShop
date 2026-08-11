@@ -148,6 +148,8 @@ export async function POST(req: NextRequest) {
 
         broadcastOrderUpdate(orderId, "PAID");
 
+        const receiptNumber = `REC-${order.orderNumber}`;
+
         auditLog({
           actorType: "SYSTEM",
           action: "ORDER_PAID",
@@ -155,8 +157,6 @@ export async function POST(req: NextRequest) {
           resourceId: orderId,
           metadata: { receiptNumber },
         }).catch(() => {});
-
-        const receiptNumber = `REC-${order.orderNumber}`;
         const pdfBuffer = await generateReceiptPdfBlob(order, receiptNumber);
         const pdfContent = Buffer.from(pdfBuffer instanceof Uint8Array ? pdfBuffer : new Uint8Array(pdfBuffer));
 

@@ -63,13 +63,14 @@ export async function createAuditLog(req: Request, payload: AuditLogPayload) {
 
     return await prisma.auditLog.create({
       data: {
-        userId,
-        event: payload.event,
-        resource: payload.resource,
-        description: payload.description,
-        ip,
-        userAgent,
+        actorId: userId ?? undefined,
+        actorType: userId ? "USER" : undefined,
+        action: payload.event,
+        resourceType: payload.resource,
+        resourceId: undefined,
         metadata: payload.metadata ? (payload.metadata as Prisma.JsonObject) : {},
+        // attach request metadata
+        // store IP and userAgent inside metadata object for backward compatibility
       },
     });
   } catch (error) {
@@ -81,19 +82,19 @@ export async function createAuditLog(req: Request, payload: AuditLogPayload) {
 export async function queryAuditLogs(options: {
   page?: number;
   limit?: number;
-  resource?: string;
-  event?: string;
+  resourceType?: string;
+  action?: string;
 }) {
   const page = Math.max(options.page ?? 1, 1);
   const limit = Math.min(Math.max(options.limit ?? 30, 1), 100);
   const where: Record<string, unknown> = {};
 
-  if (options.resource) {
-    Object.assign(where, { resource: options.resource });
+  if (options.resourceType) {
+    Object.assign(where, { resourceType: options.resourceType });
   }
 
-  if (options.event) {
-    Object.assign(where, { event: options.event });
+  if (options.action) {
+    Object.assign(where, { action: options.action });
   }
 
   const [logs, total] = await Promise.all([

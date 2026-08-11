@@ -18,8 +18,8 @@ export async function GET(req: NextRequest) {
   const data = await queryAuditLogs({
     page,
     limit,
-    resource,
-    event,
+    resourceType: resource ?? undefined,
+    action: event ?? undefined,
   });
 
   return NextResponse.json(data);
