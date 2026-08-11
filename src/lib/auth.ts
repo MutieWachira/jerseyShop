@@ -135,8 +135,21 @@ export const authOptions: NextAuthOptions = {
     },
 
     async redirect({ url, baseUrl }) {
-      if (url.startsWith("/")) return `${baseUrl}${url}`;
-      else if (new URL(url).origin === baseUrl) return url;
+      if (!url) return baseUrl;
+
+      if (url.startsWith("/")) {
+        return `${baseUrl}${url}`;
+      }
+
+      try {
+        if (new URL(url).origin === baseUrl) {
+          return url;
+        }
+      } catch (error) {
+        // Invalid redirect URL should not break session handling.
+        return baseUrl;
+      }
+
       return baseUrl;
     },
   },

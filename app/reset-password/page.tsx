@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 export default function ResetPasswordPage() {
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "";
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-    async function handleReset(e: React.FormEvent) {
+  async function handleReset(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     setMessage(null);
@@ -88,7 +91,7 @@ export default function ResetPasswordPage() {
         <p className="text-sm text-center text-slate-600 mt-6">
           Remember your password?{" "}
           <Link
-            href="/login"
+            href={`/login${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`}
             className="font-semibold text-slate-900 hover:underline"
           >
             Back to Login

@@ -10,13 +10,17 @@ type RouteContext = {
 
 const VALID_STATUSES = Object.values(OrderStatus);
 
-// Valid status transitions — prevents e.g. moving DELIVERED back to PENDING
-const STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  PENDING:   ["PAID", "CANCELLED"],
-  PAID:      ["SHIPPED", "CANCELLED"],
-  SHIPPED:   ["DELIVERED"],
-  DELIVERED: [],
-  CANCELLED: [],
+// Valid status transitions — prevents e.g. moving DELIVERED back to PENDING_PAYMENT
+const STATUS_TRANSITIONS: Partial<Record<OrderStatus, OrderStatus[]>> = {
+  PENDING_PAYMENT: ["PAID", "CANCELLED"],
+  PAID:            ["PROCESSING", "CANCELLED"],
+  PROCESSING:      ["PACKED", "CANCELLED"],
+  PACKED:          ["SHIPPED", "CANCELLED"],
+  SHIPPED:         ["DELIVERED"],
+  DELIVERED:       [],
+  CANCELLED:       [],
+  FAILED:          [],
+  REFUNDED:        [],
 };
 
 export async function GET(req: NextRequest, { params }: RouteContext) {
@@ -87,7 +91,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error: "Order not found" }, { status: 404 });
     }
 
-    const allowed = STATUS_TRANSITIONS[existing.status];
+    const allowed = STATUS_TRANSITIONS[existing.status] ?? [];
     if (!allowed.includes(status as OrderStatus)) {
       return NextResponse.json(
         {

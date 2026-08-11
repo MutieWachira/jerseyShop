@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import { useCart } from "@/src/context/CartContext";
 import { useWishlist } from "@/src/context/WishlistContext";
@@ -35,6 +35,9 @@ function NavLink({ href, label, onClick }: NavLinkProps) {
 
 export default function Navbar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentQuery = searchParams.toString();
+  const loginPath = `/login?callbackUrl=${encodeURIComponent(pathname + (currentQuery ? `?${currentQuery}` : ""))}`;
   const [menuOpen, setMenuOpen] = useState(false);
   const { cart } = useCart();
   const { wishlist } = useWishlist();
@@ -116,7 +119,7 @@ export default function Navbar() {
                 </div>
               ) : (
                 <Link 
-                  href="/login" 
+                  href={loginPath} 
                   className="hidden md:block rounded-2xl bg-slate-900 px-6 py-2 text-sm font-bold text-white shadow-lg shadow-slate-200 transition hover:bg-slate-800"
                 >
                   Login
@@ -165,7 +168,7 @@ export default function Navbar() {
                 </button>
               ) : (
                 <Link
-                  href="/login"
+                  href={loginPath}
                   className="flex items-center justify-center rounded-2xl bg-slate-900 py-3 text-sm font-bold text-white"
                 >
                   Login

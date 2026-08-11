@@ -39,7 +39,7 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   const toggleWishlist = (item: any) => {
     // ✅ Auth Gate: Force redirect if not logged in
     if (!session) {
-      router.push("/login?callbackUrl=" + window.location.pathname);
+      router.push("/login?callbackUrl=" + window.location.pathname + window.location.search);
       return;
     }
 

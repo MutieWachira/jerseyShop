@@ -4,7 +4,7 @@ import ProductCard from "@/src/components/ProductCard";
 import HeroSlideshow from "@/src/components/HeroSlideshow";
 import { authOptions } from "@/src/lib/auth";
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth/next";
+import { getServerSession } from "next-auth";
 
 interface Product {
   id: number;

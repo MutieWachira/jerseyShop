@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Package, ArrowLeft, Loader2, ChevronDown } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { normalizeProductImage, resolveProductImageUrl, shouldRequestSignedImageUrl } from "@/src/lib/image";
 
 interface Category {
   id: string;
@@ -13,7 +14,8 @@ interface Category {
 interface Variant {
   size: string;
   version: string;
-  stock: number;
+  stock: string;
+  enabled: boolean;
 }
 
 const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
@@ -33,6 +35,7 @@ export default function EditProduct() {
   const [categoryId, setCategoryId] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [image, setImage] = useState("");
+  const [imageUrl, setImageUrl] = useState<string>("/placeholder-jersey.png");
 
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -59,16 +62,39 @@ export default function EditProduct() {
         setPrice(data.price?.toString() || "");
         setTeam(data.team || "");
         setCategoryId(data.categoryId || "");
-        setImage(data.image || "");
+        const resolvedImage = data.image || "";
+        setImage(resolvedImage);
+        setImageUrl(normalizeProductImage(resolvedImage) || "/placeholder-jersey.png");
 
-        // Map DB variants to component shape — guards against missing fields
+        if (shouldRequestSignedImageUrl(resolvedImage)) {
+          const signedUrl = await resolveProductImageUrl(resolvedImage);
+          setImageUrl(signedUrl);
+        }
+
         if (Array.isArray(data.variants) && data.variants.length > 0) {
+          const productVariants = data.variants as { size: string; version: string; stock: number }[];
+          const loadedSizes = Array.from(new Set(productVariants.map((v) => v.size)));
+
           setVariants(
-            data.variants.map((v: { size: string; version: string; stock: number }) => ({
-              size: v.size,
-              version: v.version || "FAN",
-              stock: v.stock ?? 0,
-            }))
+            loadedSizes.flatMap((size) => {
+              const fan = productVariants.find((v) => v.size === size && v.version === "FAN");
+              const player = productVariants.find((v) => v.size === size && v.version === "PLAYER");
+
+              return [
+                {
+                  size,
+                  version: "FAN",
+                  stock: String(fan?.stock ?? 0),
+                  enabled: Boolean(fan),
+                },
+                {
+                  size,
+                  version: "PLAYER",
+                  stock: String(player?.stock ?? 0),
+                  enabled: Boolean(player),
+                },
+              ];
+            }),
           );
         }
       } catch (err) {
@@ -81,34 +107,41 @@ export default function EditProduct() {
     if (id) loadProduct();
   }, [id]);
 
-  // Toggle size on/off
+  // Toggle size on/off in the UI
   const toggleSize = (size: string) => {
-    const exists = variants.find((v) => v.size === size);
-    if (exists) {
-      setVariants((prev) => prev.filter((v) => v.size !== size));
-    } else {
-      setVariants((prev) => [...prev, { size, version: "FAN", stock: 0 }]);
-    }
+    setVariants((prev) => {
+      const exists = prev.some((v) => v.size === size);
+      if (exists) {
+        return prev.filter((v) => v.size !== size);
+      }
+
+      return [
+        ...prev,
+        { size, version: "FAN", stock: "0", enabled: true },
+        { size, version: "PLAYER", stock: "0", enabled: false },
+      ];
+    });
   };
 
-  // Update stock for a size
-  const updateStock = (size: string, value: number) => {
+  const updateVariant = (
+    size: string,
+    version: string,
+    field: "stock" | "enabled",
+    value: string | boolean,
+  ) => {
     setVariants((prev) =>
-      prev.map((v) => (v.size === size ? { ...v, stock: value } : v))
-    );
-  };
-
-  // Update version for a size
-  const updateVersion = (size: string, version: string) => {
-    setVariants((prev) =>
-      prev.map((v) => (v.size === size ? { ...v, version } : v))
+      prev.map((variant) =>
+        variant.size === size && variant.version === version
+          ? { ...variant, [field]: value }
+          : variant,
+      ),
     );
   };
 
   // Submit update
   const updateProduct = async () => {
-    if (!name || !price || !categoryId || !description) {
-      return alert("Please fill required fields");
+    if (!name || !price || !categoryId || !description || !variants.some((variant) => variant.enabled)) {
+      return alert("Please fill required fields and enable at least one variant.");
     }
 
     setLoading(true);
@@ -116,7 +149,7 @@ export default function EditProduct() {
     try {
       let imagePath = image;
 
-      if (imageFile) {
+        if (imageFile) {
         const formData = new FormData();
         formData.append("file", imageFile);
 
@@ -129,6 +162,14 @@ export default function EditProduct() {
         imagePath = uploadData.path;
       }
 
+      const enabledVariants = variants
+        .filter((variant) => variant.enabled)
+        .map((variant) => ({
+          size: variant.size,
+          version: variant.version,
+          stock: Number(variant.stock) || 0,
+        }));
+
       const response = await fetch(`/api/admin/products/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -139,7 +180,7 @@ export default function EditProduct() {
           team,
           categoryId,
           image: imagePath,
-          variants,
+          variants: enabledVariants,
         }),
       });
 
@@ -252,43 +293,72 @@ export default function EditProduct() {
               <label className="text-sm font-bold mb-2 block">
                 Variants (Size, Version, Stock)
               </label>
-              <div className="space-y-2">
+              <div className="space-y-4">
                 {SIZES.map((size) => {
-                  const variant = variants.find((v) => v.size === size);
+                  const sizeVariants = variants.filter((v) => v.size === size);
+                  const selected = sizeVariants.length > 0;
+
                   return (
-                    <div key={size} className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => toggleSize(size)}
-                        className={`h-10 w-12 rounded-lg font-bold border ${
-                          variant
-                            ? "bg-slate-900 text-white border-slate-900"
-                            : "bg-white text-slate-600 border-slate-200"
-                        }`}
-                      >
-                        {size}
-                      </button>
-
-                      {variant && (
-                        <>
-                          <select
-                            value={variant.version}
-                            onChange={(e) => updateVersion(size, e.target.value)}
-                            className="border rounded-lg p-2"
+                    <div key={size} className="space-y-3 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => toggleSize(size)}
+                            className={`h-10 w-12 rounded-lg font-bold border ${
+                              selected
+                                ? "bg-slate-900 text-white border-slate-900"
+                                : "bg-white text-slate-600 border-slate-200"
+                            }`}
                           >
-                            <option value="FAN">FAN</option>
-                            <option value="PLAYER">PLAYER</option>
-                          </select>
+                            {size}
+                          </button>
+                          <span className="text-sm font-semibold text-slate-700">{size}</span>
+                        </div>
+                        {selected ? (
+                          <button
+                            type="button"
+                            onClick={() => toggleSize(size)}
+                            className="text-rose-600 hover:text-rose-800 text-sm"
+                          >
+                            Remove size
+                          </button>
+                        ) : null}
+                      </div>
 
-                          <input
-                            type="number"
-                            value={variant.stock}
-                            onChange={(e) => updateStock(size, Number(e.target.value))}
-                            className="border rounded-lg p-2 w-20"
-                            placeholder="Stock"
-                          />
-                        </>
-                      )}
+                      {selected ? (
+                        <div className="grid gap-3 md:grid-cols-2">
+                          {sizeVariants.map((variant, index) => (
+                            <div
+                              key={`${variant.size}-${variant.version}`}
+                              className="rounded-3xl border border-slate-200 bg-white p-4"
+                            >
+                              <div className="flex items-center justify-between mb-3">
+                                <span className="text-sm font-semibold text-slate-900">{variant.version}</span>
+                                <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+                                  <input
+                                    type="checkbox"
+                                    checked={variant.enabled}
+                                    onChange={(e) => updateVariant(variant.size, variant.version, "enabled", e.target.checked)}
+                                    className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                                  />
+                                  Enabled
+                                </label>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-1">Stock</label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={variant.stock}
+                                  onChange={(e) => updateVariant(variant.size, variant.version, "stock", e.target.value)}
+                                  className="w-full rounded-xl border border-slate-200 p-3 outline-none focus:ring-2 focus:ring-slate-900"
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : null}
                     </div>
                   );
                 })}
@@ -297,8 +367,8 @@ export default function EditProduct() {
 
             <div>
               <label className="text-sm font-bold mb-2 block">Product Image</label>
-              {image && !imageFile && (
-                <img src={image} className="rounded-xl mb-3" />
+              {imageUrl && !imageFile && (
+                <img src={imageUrl} className="rounded-xl mb-3" />
               )}
               <input
                 type="file"

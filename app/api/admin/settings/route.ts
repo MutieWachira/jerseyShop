@@ -21,7 +21,7 @@ const DEFAULTS: Record<SettingKey, string> = {
   shop_email:           "",
   shop_description:     "",
   low_stock_threshold:  "5",
-  default_order_status: "PENDING",
+  default_order_status: "PENDING_PAYMENT",
 };
 
 const VALID_ORDER_STATUSES = Object.values(OrderStatus);

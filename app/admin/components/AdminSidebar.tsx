@@ -4,18 +4,19 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
-  LayoutDashboard, Package, ShoppingBag, Users, 
-  Settings, LogOut, ChevronRight, Menu, X 
+  LayoutDashboard, Package, ShieldCheck, ShoppingBag, Users, 
+ Settings, LogOut, ChevronRight, Menu, X 
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
+  { label: "Categories", href: "/admin/categories", icon: Package },
+  { label: "Audit Logs", href: "/admin/audit", icon: ShieldCheck },
+  { label: "Customers", href: "/admin/users", icon: Users }, 
+  { label: "Discounts", href: "/admin/discounts", icon: Package }, 
   { label: "Products", href: "/admin/products", icon: Package },
   { label: "Orders", href: "/admin/orders", icon: ShoppingBag },
-  { label: "Customers", href: "/admin/users", icon: Users },
-  { label: "Discounts", href: "/admin/discounts", icon: Package },
-  { label: "Categories", href: "/admin/categories", icon: Package },
 ];
 
 export default function AdminSidebar() {

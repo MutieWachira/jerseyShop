@@ -16,8 +16,8 @@ export async function middleware(req: NextRequest) {
   const token = await getToken({ req });
   const { pathname } = req.nextUrl;
 
-  // 1️⃣ Redirect authenticated users away from auth pages (login / signup).
-  if (token && (pathname === "/login" || pathname === "/signup")) {
+  // 1️⃣ Redirect authenticated users away from auth pages (login / register).
+  if (token && (pathname === "/login" || pathname === "/register")) {
     const destination = token.role === "ADMIN" ? "/admin" : "/shop";
     return NextResponse.redirect(new URL(destination, req.url));
   }
@@ -43,7 +43,7 @@ export async function middleware(req: NextRequest) {
   const isProtectedRoute = pathname.startsWith("/checkout") || pathname.startsWith("/orders");
   if (isProtectedRoute && !token) {
     const loginUrl = new URL("/login", req.url);
-    loginUrl.searchParams.set("callbackUrl", pathname);
+    loginUrl.searchParams.set("callbackUrl", pathname + req.nextUrl.search);
     return NextResponse.redirect(loginUrl);
   }
 
@@ -58,7 +58,7 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     "/login",
-    "/signup",
+    "/register",
     "/shop/:path*",
     "/checkout/:path*",
     "/orders/:path*",

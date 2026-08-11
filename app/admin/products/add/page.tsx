@@ -20,9 +20,12 @@ export default function NewProduct() {
   const [price, setPrice] = useState("");
   const [team, setTeam] = useState("");
   const [categoryId, setCategoryId] = useState("");
-  const [stock, setStock] = useState("0");
-  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
-  const [version, setVersion] = useState("FAN");
+  const [variants, setVariants] = useState<{
+    size: string;
+    version: string;
+    stock: string;
+    enabled: boolean;
+  }[]>([]);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -41,15 +44,36 @@ export default function NewProduct() {
   }, []);
 
   const toggleSize = (size: string) => {
-    setSelectedSizes((prev) =>
-      prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size],
+    setVariants((prev) => {
+      const existingVariants = prev.filter((variant) => variant.size === size);
+      if (existingVariants.length > 0) {
+        return prev.filter((variant) => variant.size !== size);
+      }
+
+      return [
+        ...prev,
+        { size, version: "FAN", stock: "0", enabled: true },
+        { size, version: "PLAYER", stock: "0", enabled: false },
+      ];
+    });
+  };
+
+  const updateVariant = (
+    index: number,
+    field: "stock" | "enabled",
+    value: string | boolean,
+  ) => {
+    setVariants((prev) =>
+      prev.map((variant, idx) =>
+        idx === index ? { ...variant, [field]: value } : variant,
+      ),
     );
   };
 
   const createProduct = async () => {
     // Added description to validation since your API marks it as required
-    if (!name || !price || !categoryId || !description || !imageFile) {
-      return alert("Please fill in all required fields and upload an image");
+    if (!name || !price || !categoryId || !description || !imageFile || !variants.some((variant) => variant.enabled)) {
+      return alert("Please fill in all required fields, enable at least one variant, and upload an image.");
     }
 
     setLoading(true);
@@ -72,12 +96,14 @@ export default function NewProduct() {
       imagePath = uploadData.key;
 
       // 2. Format Variants for the API logic
-      // This transforms your selected sizes into the array Prisma needs
-      const variants = selectedSizes.map((sz) => ({
-        size: sz,
-        version: version, // FAN or PLAYER
-        stock: parseInt(stock) || 0,
-      }));
+      // Only send enabled size/version combinations
+      const formattedVariants = variants
+        .filter((variant) => variant.enabled)
+        .map((variant) => ({
+          size: variant.size,
+          version: variant.version,
+          stock: parseInt(variant.stock) || 0,
+        }));
 
       // 3. POST to API
       const response = await fetch("/api/admin/products", {
@@ -90,7 +116,7 @@ export default function NewProduct() {
           team,
           categoryId,
           image: imagePath,
-          variants: variants, // Matches your API's "const { variants } = body"
+          variants: formattedVariants,
         }),
       });
 
@@ -199,31 +225,11 @@ export default function NewProduct() {
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1">
-                    Stock Count
+                    Team Size Variants
                   </label>
-                  <input
-                    type="number"
-                    className="w-full border border-slate-200 rounded-xl p-3"
-                    onChange={(e) => setStock(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1">
-                  Kit Version
-                </label>
-                <div className="flex gap-2">
-                  {VERSIONS.map((v) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => setVersion(v)}
-                      className={`flex-1 py-2 rounded-lg font-bold border transition ${version === v ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-600 border-slate-200"}`}
-                    >
-                      {v}
-                    </button>
-                  ))}
+                  <div className="rounded-3xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                    Select one or more sizes below, then set the stock and kit version for each.
+                  </div>
                 </div>
               </div>
             </div>
@@ -234,18 +240,78 @@ export default function NewProduct() {
                   Available Sizes
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {SIZES.map((size) => (
-                    <button
-                      key={size}
-                      type="button"
-                      onClick={() => toggleSize(size)}
-                      className={`h-10 w-12 rounded-lg font-bold border transition ${selectedSizes.includes(size) ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-600 border-slate-200"}`}
-                    >
-                      {size}
-                    </button>
-                  ))}
+                  {SIZES.map((size) => {
+                    const selected = variants.some((variant) => variant.size === size);
+                    return (
+                      <button
+                        key={size}
+                        type="button"
+                        onClick={() => toggleSize(size)}
+                        className={`h-10 w-12 rounded-lg font-bold border transition ${selected ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-600 border-slate-200"}`}
+                      >
+                        {size}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
+
+              {variants.length > 0 ? (
+                <div className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="text-sm font-semibold text-slate-700">Variant details</p>
+                  {Array.from(new Set(variants.map((variant) => variant.size))).map((size) => (
+                    <div key={size} className="space-y-3 rounded-3xl border border-slate-200 bg-white p-4">
+                      <div className="flex items-center justify-between rounded-3xl bg-slate-100 p-3 text-sm font-semibold text-slate-900">
+                        <span>{size}</span>
+                        <button
+                          type="button"
+                          onClick={() => toggleSize(size)}
+                          className="text-rose-600 hover:text-rose-800"
+                        >
+                          Remove size
+                        </button>
+                      </div>
+
+                      <div className="grid gap-3">
+                        {variants.map((variant, index) =>
+                          variant.size === size ? (
+                            <div
+                              key={`${variant.size}-${variant.version}`}
+                              className="grid gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-[140px_1fr]"
+                            >
+                              <div className="flex flex-col justify-between rounded-3xl bg-white p-3 text-sm font-semibold text-slate-900">
+                                <span>{variant.version}</span>
+                                <label className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+                                  <input
+                                    type="checkbox"
+                                    checked={variant.enabled}
+                                    onChange={(e) => updateVariant(index, "enabled", e.target.checked)}
+                                    className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                                  />
+                                  Enabled
+                                </label>
+                              </div>
+
+                              <div className="grid gap-3">
+                                <div>
+                                  <label className="block text-sm font-bold text-slate-700 mb-1">Stock</label>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    value={variant.stock}
+                                    onChange={(e) => updateVariant(index, "stock", e.target.value)}
+                                    className="w-full rounded-xl border border-slate-200 p-3 outline-none focus:ring-2 focus:ring-slate-900"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ) : null,
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
 
               <div>
                 <label className="block text-sm font-bold text-slate-700 mb-1">

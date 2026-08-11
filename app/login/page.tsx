@@ -3,10 +3,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { signIn, getSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -47,13 +49,16 @@ export default function LoginPage() {
       }
 
       const role = session.user?.role;
+      const safeCallbackUrl = callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "";
 
-      // ✅ Updated Role based routing for credentials
+      if (safeCallbackUrl) {
+        router.push(safeCallbackUrl);
+        return;
+      }
+
       if (role === "ADMIN") {
         router.push("/admin");
-      } 
-      else {
-        // Fallback to /shop as default for all other roles (USER, etc.)
+      } else {
         router.push("/shop");
       }
 
@@ -138,7 +143,7 @@ export default function LoginPage() {
             {/* ✅ Fixed: Changed callbackUrl from /dashboard to /shop */}
             <button
               type="button"
-              onClick={() => signIn("google", { callbackUrl: "/shop" })}
+              onClick={() => signIn("google", { callbackUrl: callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/shop" })}
               className="text-slate-600 w-full flex items-center justify-center gap-3 border border-slate-300 rounded-xl py-3 hover:bg-slate-50 transition"
             >
                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="w-5 h-5">
@@ -153,7 +158,7 @@ export default function LoginPage() {
             
             <button
               type="button"
-              onClick={() => signIn("apple", { callbackUrl: "/shop" })}
+              onClick={() => signIn("apple", { callbackUrl: callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/shop" })}
               className="w-full flex items-center justify-center gap-3 bg-black text-white rounded-xl py-3 hover:opacity-90 transition"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -167,12 +172,19 @@ export default function LoginPage() {
         <p className="text-sm text-center text-slate-600 mt-6">
           Don't have an account?{" "}
           <Link
-            href="/register"
+            href={`/register${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`}
             className="font-semibold text-slate-900 hover:underline"
           >
             Sign Up
           </Link>
         </p>
+
+        <Link
+          href={`/login${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`}
+          className="block text-sm text-center mt-2 text-slate-600 hover:underline"
+        >
+          Forgot password?
+        </Link>
 
         <Link
           href="/reset-password"

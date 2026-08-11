@@ -41,7 +41,8 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
               select: {
                 id: true,
                 quantity: true,
-                price: true,
+                unitPrice: true,
+                totalPrice: true,
                 product: {
                   select: { id: true, name: true, image: true, team: true },
                 },

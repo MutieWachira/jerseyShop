@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -14,6 +14,8 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
 
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "";
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
@@ -38,7 +40,8 @@ export default function RegisterPage() {
         });
 
         if (loginResult?.ok) {
-          router.push("/dashboard");
+          const safeCallbackUrl = callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/shop";
+          router.push(safeCallbackUrl);
         } else {
           setError("Signup succeeded but login failed");
         }
@@ -133,7 +136,7 @@ export default function RegisterPage() {
           <div className="space-y-3">
             <button
               type="button"
-              onClick={() => signIn("google", { callbackUrl: "/shop" })}
+              onClick={() => signIn("google", { callbackUrl: callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/shop" })}
               className="text-slate-600 w-full flex items-center justify-center gap-3 border border-slate-300 rounded-xl py-3 hover:bg-slate-50 transition"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="w-5 h-5">
@@ -148,7 +151,7 @@ export default function RegisterPage() {
 
             <button
               type="button"
-              onClick={() => signIn("apple", { callbackUrl: "/shop" })}
+              onClick={() => signIn("apple", { callbackUrl: callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/shop" })}
               className="w-full flex items-center justify-center gap-3 bg-black text-white rounded-xl py-3 hover:opacity-90 transition"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -162,7 +165,10 @@ export default function RegisterPage() {
 
         <p className="text-sm text-center text-slate-600 mt-6">
           Already have an account?{" "}
-          <Link href="/login" className="font-semibold text-slate-900 hover:underline">
+          <Link
+            href={`/login${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`}
+            className="font-semibold text-slate-900 hover:underline"
+          >
             Login
           </Link>
         </p>
