@@ -71,6 +71,12 @@ enum PaymentMethod {
   CASH_ON_DELIVERY
 }
 
+enum AuditLevel {
+  INFO
+  WARN
+  ERROR
+}
+
 //////////////////////////////////////////////////////
 // USER
 //////////////////////////////////////////////////////
@@ -297,30 +303,6 @@ model Receipt {
   shippingFee Int
   tax         Int
 
-//////////////////////////////////////////////////////
-// AUDIT LOG
-//////////////////////////////////////////////////////
-
-enum AuditLevel {
-  INFO
-  WARN
-  ERROR
-}
-
-model AuditLog {
-  id           String    @id @default(cuid())
-  actorId      String?
-  actorType    String?   // e.g. "USER", "SYSTEM", "ADMIN"
-  action       String
-  resourceType String?   // e.g. "Order", "Payment", "Withdrawal"
-  resourceId   String?
-  level        AuditLevel @default(INFO)
-  metadata     Json?
-  createdAt    DateTime  @default(now())
-
-  @@index([actorId])
-  @@index([resourceType, resourceId])
-}
   total       Int
 
   pdfUrl    String?
@@ -439,20 +421,18 @@ model Setting {
 }
 
 model AuditLog {
-  id          String   @id @default(cuid())
-  userId      String?
-  event       String
-  resource    String
-  description String
-  ip          String
-  userAgent   String?
-  metadata    Json     @default("{}")
-  createdAt   DateTime @default(now())
+  id           String    @id @default(cuid())
+  actorId      String?
+  actorType    String?   // e.g. "USER", "SYSTEM", "ADMIN"
+  action       String
+  resourceType String?   // e.g. "Order", "Payment", "Withdrawal"
+  resourceId   String?
+  level        AuditLevel @default(INFO)
+  metadata     Json?
+  createdAt    DateTime  @default(now())
 
-  @@index([userId])
-  @@index([resource])
-  @@index([event])
-  @@index([createdAt])
+  @@index([actorId])
+  @@index([resourceType, resourceId])
 }
 
 //////////////////////////////////////////////////////

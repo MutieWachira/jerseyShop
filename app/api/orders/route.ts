@@ -191,7 +191,8 @@ export async function POST(req: NextRequest) {
               actor: "SYSTEM"
             }
           }
-        }
+        },
+        include: { items: true },
       });
     });
 
