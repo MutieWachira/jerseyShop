@@ -37,6 +37,12 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum WithdrawalStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
 enum ReceiptStatus {
   DRAFT
   FINALIZED
@@ -80,11 +86,12 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts  Account[]
-  sessions  Session[]
-  cartItems CartItem[]
-  orders    Order[]
-  reviews   Review[]
+  accounts    Account[]
+  sessions    Session[]
+  cartItems   CartItem[]
+  orders      Order[]
+  withdrawals Withdrawal[]
+  reviews     Review[]
 }
 
 //////////////////////////////////////////////////////
@@ -259,11 +266,11 @@ model OrderItem {
   size    Size
   version KitVersion
 
-  quantity          Int
-  unitPrice         Int
-  customizationCost Int @default(0)
+  quantity             Int
+  unitPrice            Int
+  customizationCost    Int     @default(0)
   customizationDetails String?
-  totalPrice        Int
+  totalPrice           Int
 
   createdAt DateTime @default(now())
 
@@ -289,6 +296,31 @@ model Receipt {
   discount    Int
   shippingFee Int
   tax         Int
+
+//////////////////////////////////////////////////////
+// AUDIT LOG
+//////////////////////////////////////////////////////
+
+enum AuditLevel {
+  INFO
+  WARN
+  ERROR
+}
+
+model AuditLog {
+  id           String    @id @default(cuid())
+  actorId      String?
+  actorType    String?   // e.g. "USER", "SYSTEM", "ADMIN"
+  action       String
+  resourceType String?   // e.g. "Order", "Payment", "Withdrawal"
+  resourceId   String?
+  level        AuditLevel @default(INFO)
+  metadata     Json?
+  createdAt    DateTime  @default(now())
+
+  @@index([actorId])
+  @@index([resourceType, resourceId])
+}
   total       Int
 
   pdfUrl    String?
@@ -333,6 +365,26 @@ model Payment {
   @@index([checkoutRequestId])
   @@index([paymentReference])
   @@index([transactionId])
+}
+
+model Withdrawal {
+  id              String           @id @default(cuid())
+  adminId         String
+  admin           User             @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  amount          Int
+  currency        String           @default("KES")
+  phone           String
+  status          WithdrawalStatus @default(PENDING)
+  reference       String           @unique
+  transactionId   String?
+  gatewayResponse Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([adminId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 //////////////////////////////////////////////////////

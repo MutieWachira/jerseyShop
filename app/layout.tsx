@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import "./globals.css";
 import Providers from "@/src/components/Providers";
 import Navbar from "@/src/components/Navbar"; // ✅ Ensure this is imported
@@ -11,7 +12,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         suppressHydrationWarning={true}
       >
         <Providers>
-          <Navbar />
+          <Suspense fallback={null}>
+            <Navbar />
+          </Suspense>
           <main className="flex-grow">
             {children}
           </main>

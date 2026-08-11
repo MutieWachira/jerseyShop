@@ -19,15 +19,16 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type OrderStatus = "PENDING" | "PAID" | "SHIPPED" | "DELIVERED" | "CANCELLED";
+type OrderStatus = "PENDING" | "PAID" | "PROCESSING" | "PACKED" | "SHIPPED" | "DELIVERED" | "CANCELLED";
 type ConnectionState = "connecting" | "live" | "polling" | "offline";
 
 interface OrderItem {
-  id:       number;
-  quantity: number;
-  price:    number;
-  product:  { id: number; name: string; image: string; team: string };
-  variant:  { size: string; version: string };
+  id:         number;
+  quantity:   number;
+  unitPrice:  number;
+  totalPrice: number;
+  product:    { id: number; name: string; image: string; team: string };
+  variant:    { size: string; version: string };
 }
 
 interface Order {
@@ -48,22 +49,26 @@ interface Pagination {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const STATUSES: OrderStatus[] = ["PENDING", "PAID", "SHIPPED", "DELIVERED", "CANCELLED"];
+const STATUSES: OrderStatus[] = ["PENDING", "PAID", "PROCESSING", "PACKED", "SHIPPED", "DELIVERED", "CANCELLED"];
 
 const STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  PENDING:   ["PAID", "CANCELLED"],
-  PAID:      ["SHIPPED", "CANCELLED"],
-  SHIPPED:   ["DELIVERED"],
-  DELIVERED: [],
-  CANCELLED: [],
+  PENDING:    ["PAID", "CANCELLED"],
+  PAID:       ["PROCESSING", "CANCELLED"],
+  PROCESSING: ["PACKED", "CANCELLED"],
+  PACKED:     ["SHIPPED", "CANCELLED"],
+  SHIPPED:    ["DELIVERED"],
+  DELIVERED:  [],
+  CANCELLED:  [],
 };
 
 const STATUS_STYLES: Record<OrderStatus, string> = {
-  PENDING:   "bg-amber-50   text-amber-600   border-amber-200",
-  PAID:      "bg-blue-50    text-blue-600    border-blue-200",
-  SHIPPED:   "bg-violet-50  text-violet-600  border-violet-200",
-  DELIVERED: "bg-emerald-50 text-emerald-600 border-emerald-200",
-  CANCELLED: "bg-rose-50    text-rose-600    border-rose-200",
+  PENDING:    "bg-amber-50   text-amber-600   border-amber-200",
+  PAID:       "bg-blue-50    text-blue-600    border-blue-200",
+  PROCESSING: "bg-slate-50   text-slate-600   border-slate-200",
+  PACKED:     "bg-cyan-50    text-cyan-600    border-cyan-200",
+  SHIPPED:    "bg-violet-50  text-violet-600  border-violet-200",
+  DELIVERED:  "bg-emerald-50 text-emerald-600 border-emerald-200",
+  CANCELLED:  "bg-rose-50    text-rose-600    border-rose-200",
 };
 
 const POLL_INTERVAL_MS = 15_000; // polling fallback: every 15 seconds
@@ -211,7 +216,7 @@ function OrderModal({
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-black text-slate-900">Ksh {item.price.toLocaleString()}</p>
+                    <p className="text-sm font-black text-slate-900">Ksh {item.unitPrice.toLocaleString()}</p>
                     <p className="text-xs text-slate-500">×{item.quantity}</p>
                   </div>
                 </div>
@@ -521,21 +526,25 @@ export default function AdminOrdersPage() {
 
                         <td className="p-6">
                           <div className="flex justify-end gap-2">
-                            {STATUS_TRANSITIONS[order.status].length > 0 && (
+                            {((STATUS_TRANSITIONS[order.status] ?? []) as OrderStatus[]).length > 0 && (
                               <div className="relative group">
                                 <button className="p-2 bg-slate-50 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition text-xs font-black flex items-center gap-1">
                                   Update <ChevronDown size={12} />
                                 </button>
                                 <div className="absolute right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-lg z-10 overflow-hidden hidden group-hover:block min-w-[130px]">
-                                  {STATUS_TRANSITIONS[order.status].map((s) => (
-                                    <button
-                                      key={s}
-                                      onClick={() => handleStatusUpdate(order.id, s)}
-                                      className={`w-full text-left px-4 py-2.5 text-[10px] font-black uppercase hover:bg-slate-50 transition ${STATUS_STYLES[s].split(" ")[1]}`}
-                                    >
-                                      {s}
-                                    </button>
-                                  ))}
+                                  {((STATUS_TRANSITIONS[order.status] ?? []) as OrderStatus[]).map((s) => {
+                                    const style = STATUS_STYLES[s] ?? "bg-slate-50 text-slate-600 border-slate-200";
+                                    const badge = style.split(" ")[1] ?? "text-slate-600";
+                                    return (
+                                      <button
+                                        key={s}
+                                        onClick={() => handleStatusUpdate(order.id, s)}
+                                        className={`w-full text-left px-4 py-2.5 text-[10px] font-black uppercase hover:bg-slate-50 transition ${badge}`}
+                                      >
+                                        {s}
+                                      </button>
+                                    );
+                                  })}
                                 </div>
                               </div>
                             )}

@@ -1,6 +1,39 @@
-import { prisma } from "@/src/lib/prisma";
+import { prisma } from "./prisma";
+
+type AuditLevel = "INFO" | "WARN" | "ERROR";
+
+export async function auditLog(params: {
+  actorId?: string | null;
+  actorType?: string | null;
+  action: string;
+  resourceType?: string | null;
+  resourceId?: string | null;
+  level?: AuditLevel;
+  metadata?: any;
+}) {
+  const { actorId, actorType, action, resourceType, resourceId, level = "INFO", metadata } = params;
+  try {
+    // best-effort: do not throw or block main flows
+    await prisma.auditLog.create({
+      data: {
+        actorId: actorId ?? undefined,
+        actorType: actorType ?? undefined,
+        action,
+        resourceType: resourceType ?? undefined,
+        resourceId: resourceId ?? undefined,
+        level: level as any,
+        metadata: metadata ?? undefined,
+      },
+    });
+  } catch (err) {
+    console.error("[AUDIT] failed to write audit log", { action, resourceType, resourceId, err });
+  }
+}
+
+export default auditLog;
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/src/lib/auth";
+import type { Prisma } from "@prisma/client";
 
 export interface AuditLogPayload {
   event: string;
@@ -36,7 +69,7 @@ export async function createAuditLog(req: Request, payload: AuditLogPayload) {
         description: payload.description,
         ip,
         userAgent,
-        metadata: payload.metadata ?? {},
+        metadata: payload.metadata ? (payload.metadata as Prisma.JsonObject) : {},
       },
     });
   } catch (error) {

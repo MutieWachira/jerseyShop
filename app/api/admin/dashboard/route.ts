@@ -20,13 +20,13 @@ export async function GET(req: NextRequest) {
       monthlySales,
     ] = await Promise.all([
 
-      // Total orders count
-      prisma.order.count(),
+      // Total completed orders count
+      prisma.order.count({ where: { status: { in: ["PAID", "PROCESSING", "PACKED", "SHIPPED", "DELIVERED"] } } }),
 
-      // Total sales sum
+      // Total sales sum — count only completed payment sales and include final discounted totals.
       prisma.order.aggregate({
         _sum: { total: true },
-        where: { status: { not: "CANCELLED" } },
+        where: { status: { in: ["PAID", "PROCESSING", "PACKED", "SHIPPED", "DELIVERED"] } },
       }),
 
       // Total products
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
         FROM "Order"
         WHERE
           "createdAt" >= NOW() - INTERVAL '6 months'
-          AND status != 'CANCELLED'
+          AND status IN ('PAID', 'PROCESSING', 'PACKED', 'SHIPPED', 'DELIVERED')
         GROUP BY DATE_TRUNC('month', "createdAt")
         ORDER BY DATE_TRUNC('month', "createdAt") ASC
       `,

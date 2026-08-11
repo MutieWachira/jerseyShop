@@ -1,6 +1,17 @@
 import { useState } from "react";
 import { useCart } from "@/src/context/CartContext";
 
+type CheckoutPaymentData = {
+  paymentUrl?: string;
+  [key: string]: any;
+};
+
+export type CheckoutResult = {
+  orderId: string;
+  paymentRequired: boolean;
+  paymentData?: CheckoutPaymentData | null;
+} | null;
+
 const CUSTOMISATION_PRICING = {
   badge: 200,
   name: 100,
@@ -27,7 +38,7 @@ export function useCheckout() {
     mpesaPhone?: string,
     paymentDetails?: any,
     shippingCost = 0
-  ) => {
+  ): Promise<CheckoutResult> => {
     setLoading(true);
     setError(null);
 
@@ -66,9 +77,14 @@ export function useCheckout() {
       const orderData = await orderResponse.json();
       if (!orderResponse.ok) throw new Error(orderData.error || "Order generation runtime bottleneck");
 
-      const { orderId, paymentRequired } = orderData;
+      const { orderId, paymentRequired, total: orderTotal } = orderData;
       if (!paymentRequired) {
         return { orderId, paymentData: null, paymentRequired: false };
+      }
+
+      const amountToPay = Math.ceil(Number(orderTotal ?? grandTotal));
+      if (!Number.isFinite(amountToPay) || amountToPay <= 0) {
+        throw new Error("Invalid payment amount calculated");
       }
 
       const paymentPath = paymentMethod === "mpesa" ? "/api/payments/mpesa/initiate" : "/api/payments/flutterwave/initiate";
@@ -77,7 +93,7 @@ export function useCheckout() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           orderId,
-          amount: grandTotal,
+          amount: amountToPay,
           phone: mpesaPhone || shippingDetails.phone,
           email: shippingDetails.email,
           paymentDetails: paymentDetails || null,
@@ -87,7 +103,7 @@ export function useCheckout() {
       const paymentData = await paymentResponse.json();
       if (!paymentResponse.ok) throw new Error(paymentData.error || "Payment routing infrastructure error");
 
-      return { orderId, paymentData };
+      return { orderId, paymentRequired: true, paymentData };
     } catch (err: any) {
       setError(err.message || "Generic operational exception triggered");
       return null;

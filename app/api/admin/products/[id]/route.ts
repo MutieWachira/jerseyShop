@@ -86,9 +86,11 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     }
 
     // Update variants with proper enum validation
-    if (Array.isArray(variants)) {
+    const variantPayloads = Array.isArray(variants) ? variants : null;
+
+    if (variantPayloads) {
       // Validate each variant's enum values before touching the DB
-      for (const v of variants) {
+      for (const v of variantPayloads) {
         if (!VALID_SIZES.includes(v.size)) {
           return NextResponse.json(
             { error: `Invalid size "${v.size}". Must be one of: ${VALID_SIZES.join(", ")}` },
@@ -102,24 +104,77 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
           );
         }
       }
-
-      // Delete existing variants then recreate with validated values
-      await prisma.productVariant.deleteMany({ where: { productId: id } });
-
-      data.variants = {
-        create: variants.map((v: { size: string; version: string; stock: number }) => ({
-          size: v.size as Size,             // safe cast — validated above
-          version: v.version as KitVersion, // safe cast — validated above
-          stock: Math.max(0, Number(v.stock) || 0), // prevent negative stock
-        })),
-      };
     }
 
-    const updated = await prisma.product.update({
+    let updated = await prisma.product.update({
       where: { id },
       data,
       include: { category: true, variants: true },
     });
+
+    if (variantPayloads) {
+      const normalizedVariants = variantPayloads.map((v: { size: string; version: string; stock: number }) => ({
+        key: `${v.size}:${v.version}`,
+        size: v.size as Size,
+        version: v.version as KitVersion,
+        stock: Math.max(0, Number(v.stock) || 0),
+      }));
+
+      const existingVariants = await prisma.productVariant.findMany({
+        where: { productId: id },
+        include: {
+          orderItems: { select: { id: true } },
+          cartItems: { select: { id: true } },
+        },
+      });
+
+      const existingMap = new Map(existingVariants.map((variant) => [
+        `${variant.size}:${variant.version}`,
+        variant,
+      ]));
+      const requestedKeys = new Set(normalizedVariants.map((variant) => variant.key));
+
+      const deletableIds = existingVariants
+        .filter((variant) =>
+          !requestedKeys.has(`${variant.size}:${variant.version}`) &&
+          variant.orderItems.length === 0 &&
+          variant.cartItems.length === 0,
+        )
+        .map((variant) => variant.id);
+
+      const updatePromises = normalizedVariants
+        .filter((variant) => existingMap.has(variant.key))
+        .map((variant) =>
+          prisma.productVariant.update({
+            where: { id: existingMap.get(variant.key)!.id },
+            data: { stock: variant.stock },
+          }),
+        );
+
+      const createData = normalizedVariants
+        .filter((variant) => !existingMap.has(variant.key))
+        .map((variant) => ({
+          productId: id,
+          size: variant.size,
+          version: variant.version,
+          stock: variant.stock,
+        }));
+
+      await Promise.all([
+        ...updatePromises,
+        createData.length ? prisma.productVariant.createMany({ data: createData }) : null,
+        deletableIds.length ? prisma.productVariant.deleteMany({ where: { id: { in: deletableIds } } }) : null,
+      ].filter(Boolean));
+
+      const refreshedProduct = await prisma.product.findUnique({
+        where: { id },
+        include: { category: true, variants: true },
+      });
+      if (!refreshedProduct) {
+        return NextResponse.json({ error: "Product not found after update" }, { status: 404 });
+      }
+      updated = refreshedProduct;
+    }
 
     return NextResponse.json({ success: true, product: updated });
   } catch (err) {

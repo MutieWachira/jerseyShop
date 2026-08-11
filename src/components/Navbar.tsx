@@ -35,9 +35,22 @@ function NavLink({ href, label, onClick }: NavLinkProps) {
 
 export default function Navbar() {
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const currentQuery = searchParams.toString();
-  const loginPath = `/login?callbackUrl=${encodeURIComponent(pathname + (currentQuery ? `?${currentQuery}` : ""))}`;
+  const [mounted, setMounted] = useState(false);
+  const [loginPath, setLoginPath] = useState<string>("/login");
+
+  // compute search params and derived loginPath only on the client after mount
+  useEffect(() => {
+    setMounted(true);
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const currentQuery = searchParams.toString();
+      const path = pathname || "/";
+      const cb = encodeURIComponent(path + (currentQuery ? `?${currentQuery}` : ""));
+      setLoginPath(`/login?callbackUrl=${cb}`);
+    } catch (e) {
+      setLoginPath("/login");
+    }
+  }, [pathname]);
   const [menuOpen, setMenuOpen] = useState(false);
   const { cart } = useCart();
   const { wishlist } = useWishlist();
@@ -98,32 +111,37 @@ export default function Navbar() {
 
             <div className="hidden md:block h-6 w-px bg-slate-200 mx-1" />
 
-            {!loading && (
-              session ? (
-                <div className="hidden md:flex items-center gap-2">
+            {!mounted ? (
+              // server-render/stable placeholder to avoid hydration mismatch
+              <Link href="/login" className="hidden md:block rounded-2xl bg-slate-900 px-6 py-2 text-sm font-bold text-white shadow-lg shadow-slate-200 transition hover:bg-slate-800">Login</Link>
+            ) : (
+              !loading && (
+                session ? (
+                  <div className="hidden md:flex items-center gap-2">
+                    <Link 
+                      href={session.user?.role === "ADMIN" ? "/admin" : "/shop"} 
+                      className="flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-slate-200 transition hover:bg-slate-800"
+                    >
+                       <User size={16} />
+                       <span className="hidden lg:inline">
+                         {session.user.name?.split(" ")[0]}
+                       </span>
+                    </Link>
+                    <button 
+                      onClick={() => signOut()} 
+                      className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition"
+                    >
+                      <LogOut size={18} />
+                    </button>
+                  </div>
+                ) : (
                   <Link 
-                    href={session.user?.role === "ADMIN" ? "/admin" : "/shop"} 
-                    className="flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-slate-200 transition hover:bg-slate-800"
+                    href={loginPath} 
+                    className="hidden md:block rounded-2xl bg-slate-900 px-6 py-2 text-sm font-bold text-white shadow-lg shadow-slate-200 transition hover:bg-slate-800"
                   >
-                     <User size={16} />
-                     <span className="hidden lg:inline">
-                       {session.user.name?.split(" ")[0]}
-                     </span>
+                    Login
                   </Link>
-                  <button 
-                    onClick={() => signOut()} 
-                    className="flex h-9 w-9 items-center justify-center rounded-xl text-slate-400 hover:bg-rose-50 hover:text-rose-500 transition"
-                  >
-                    <LogOut size={18} />
-                  </button>
-                </div>
-              ) : (
-                <Link 
-                  href={loginPath} 
-                  className="hidden md:block rounded-2xl bg-slate-900 px-6 py-2 text-sm font-bold text-white shadow-lg shadow-slate-200 transition hover:bg-slate-800"
-                >
-                  Login
-                </Link>
+                )
               )
             )}
 

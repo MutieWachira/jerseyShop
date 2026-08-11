@@ -26,13 +26,14 @@ export async function GET(req: NextRequest, { params }: RouteContext) {
 
   const receiptNumber = order.orderNumber ? `REC-${order.orderNumber}` : `REC-${order.id}`;
   const pdfBuffer = await generateReceiptPdfBlob(order, receiptNumber);
+  const body = pdfBuffer.buffer as ArrayBuffer;
 
-  return new Response(pdfBuffer, {
+  return new Response(body, {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="${receiptNumber}.pdf"`,
-      "Cache-Control": "no-store"
-    }
+      "Cache-Control": "no-store",
+    },
   });
 }

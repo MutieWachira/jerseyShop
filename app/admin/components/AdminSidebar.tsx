@@ -4,8 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { 
-  LayoutDashboard, Package, ShieldCheck, ShoppingBag, Users, 
- Settings, LogOut, ChevronRight, Menu, X 
+  LayoutDashboard, Package, ShieldCheck, ShoppingBag, Users, DollarSign,
+  Settings, LogOut, ChevronRight, Menu, X 
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { label: "Discounts", href: "/admin/discounts", icon: Package }, 
   { label: "Products", href: "/admin/products", icon: Package },
   { label: "Orders", href: "/admin/orders", icon: ShoppingBag },
+  { label: "Finance", href: "/admin/finance", icon: DollarSign },
 ];
 
 export default function AdminSidebar() {

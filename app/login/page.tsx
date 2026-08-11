@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
 import { signIn, getSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "";
@@ -71,13 +71,12 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="min-h-screen bg-white flex items-center justify-center p-4">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 p-8 shadow-sm">
-        <h1 className="text-2xl font-bold text-slate-900 mb-6 text-center">
-          Login
-        </h1>
+    <div className="w-full max-w-md rounded-2xl border border-slate-200 p-8 shadow-sm">
+      <h1 className="text-2xl font-bold text-slate-900 mb-6 text-center">
+        Login
+      </h1>
 
-        <form onSubmit={handleLogin} className="space-y-4">
+      <form onSubmit={handleLogin} className="space-y-4">
           {error && (
             <p className="text-red-500 text-sm text-center">{error}</p>
           )}
@@ -172,7 +171,7 @@ export default function LoginPage() {
         <p className="text-sm text-center text-slate-600 mt-6">
           Don't have an account?{" "}
           <Link
-            href={`/register${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`}
+            href={callbackUrl ? `/register?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/register"}
             className="font-semibold text-slate-900 hover:underline"
           >
             Sign Up
@@ -180,7 +179,7 @@ export default function LoginPage() {
         </p>
 
         <Link
-          href={`/login${callbackUrl ? `?callbackUrl=${encodeURIComponent(callbackUrl)}` : ""}`}
+          href={callbackUrl ? `/login?callbackUrl=${encodeURIComponent(callbackUrl)}` : "/login"}
           className="block text-sm text-center mt-2 text-slate-600 hover:underline"
         >
           Forgot password?
@@ -193,6 +192,15 @@ export default function LoginPage() {
           Forgot password?
         </Link>
       </div>
+    );
+}
+
+export default function LoginPage() {
+  return (
+    <main className="min-h-screen bg-white flex items-center justify-center p-4">
+      <Suspense fallback={<div className="text-center text-slate-500">Loading...</div>}>
+        <LoginPageContent />
+      </Suspense>
     </main>
   );
 }

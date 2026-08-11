@@ -13,6 +13,7 @@ import {
   TrendingUp,
   Package,
   Users,
+  DollarSign,
   Loader2,
   RefreshCw,
 } from "lucide-react";
@@ -211,6 +212,7 @@ export default function AdminDashboard() {
                     { href: "/admin/orders",        label: "Manage Orders",   icon: ShoppingBag, accent: "bg-blue-50 text-blue-600" },
                     { href: "/admin/products",      label: "View Inventory",  icon: TrendingUp,  accent: "bg-emerald-50 text-emerald-600" },
                     { href: "/admin/users",         label: "Manage Users",    icon: Users,       accent: "bg-slate-100 text-slate-600" },
+                    { href: "/admin/finance",       label: "Finance Center",  icon: DollarSign, accent: "bg-blue-50 text-blue-600" },
                   ].map(({ href, label, icon: Icon, accent }) => (
                     <Link
                       key={href}

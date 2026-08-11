@@ -30,7 +30,7 @@ export async function POST(req: Request) {
         // 1. Lock Order State
         await tx.order.update({
           where: { id: orderId },
-          data: { status: "PAID", checkoutRequest: checkoutRequestId },
+          data: { status: "PAID" },
         });
 
         // 2. Construct Safe Legal Receipt Log
@@ -38,13 +38,24 @@ export async function POST(req: Request) {
           data: {
             orderId: order.id,
             receiptNumber,
-            // pdfUrl could be assigned after streaming document bytes up to secure AWS S3 / Cloudflare R2 bucket
+            status: "FINALIZED",
+            subtotal: order.subtotal,
+            discount: order.discountAmount ?? 0,
+            shippingFee: order.shippingFee,
+            tax: order.tax ?? 0,
+            total: order.total,
+            emailed: true,
+            emailedAt: new Date(),
+            paidAt: new Date(),
           },
         });
       });
 
       // 3. Generate dynamic buffer stream for file distribution attachment
       const pdfBuffer = await generateReceiptPdfBlob(order, receiptNumber);
+      const pdfContent = Buffer.from(
+        pdfBuffer instanceof Uint8Array ? pdfBuffer : new Uint8Array(pdfBuffer)
+      );
 
       // 4. Send asynchronous email notifications
       const emailSent = await resend.emails.send({
@@ -52,7 +63,7 @@ export async function POST(req: Request) {
         to: order.shippingEmail,
         subject: `Your Order Confirmation Receipt: ${receiptNumber}`,
         text: `Thank you for your business ${order.shippingName}! Find your invoice summary attached.`,
-        attachments: [{ filename: `${receiptNumber}.pdf`, content: pdfBuffer, contentType: "application/pdf" }],
+        attachments: [{ filename: `${receiptNumber}.pdf`, content: pdfContent, contentType: "application/pdf" }],
       });
 
       if (!emailSent) {

@@ -54,7 +54,7 @@ export default async function OrdersPage() {
                   {order.items.map((item) => (
                     <div key={item.id} className="flex items-center gap-4">
                       <img
-                        src={normalizeProductImage(item.product?.image || item.image || "/uploads/placeholder.png")}
+                        src={normalizeProductImage(item.product?.image || item.image) || "/uploads/placeholder.png"}
                         alt={item.product?.name || item.productName || "Product image"}
                         className="w-16 h-16 rounded-xl object-cover bg-slate-100"
                       />

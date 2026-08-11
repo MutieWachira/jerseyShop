@@ -11,6 +11,7 @@
 
 import { NextResponse } from 'next/server';
 import { ZodError } from 'zod';
+import React from 'react';
 
 /**
  * Base application error class
@@ -315,7 +316,7 @@ export function handleApiError(error: unknown): NextResponse {
     return NextResponse.json(
       {
         error: 'Validation failed',
-        details: error.errors,
+        details: error.issues,
         code: 'VALIDATION_ERROR',
       },
       { status: 400 }
@@ -430,21 +431,27 @@ export class ErrorBoundary extends React.Component<
         return this.props.fallback;
       }
 
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Something went wrong</h1>
-            <p className="text-gray-600 mb-6">
-              We apologize for the inconvenience. Please try again later.
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition"
-            >
-              Reload Page
-            </button>
-          </div>
-        </div>
+      return React.createElement(
+        "div",
+        { className: "min-h-screen flex items-center justify-center bg-gray-50" },
+        React.createElement(
+          "div",
+          { className: "max-w-md w-full bg-white rounded-lg shadow-lg p-8" },
+          React.createElement("h1", { className: "text-2xl font-bold text-gray-900 mb-4" }, "Something went wrong"),
+          React.createElement(
+            "p",
+            { className: "text-gray-600 mb-6" },
+            "We apologize for the inconvenience. Please try again later."
+          ),
+          React.createElement(
+            "button",
+            {
+              onClick: () => window.location.reload(),
+              className: "w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition",
+            },
+            "Reload Page"
+          )
+        )
       );
     }
 

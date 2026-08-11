@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
+import { auditLog } from "@/src/lib/audit";
 import { OrderStatus, PaymentMethod, Size, KitVersion } from "@prisma/client";
 
 // Rate Limiting Mock Wrapper - Ensure you protect this endpoint from brute force attacks
@@ -194,12 +195,23 @@ export async function POST(req: NextRequest) {
       });
     });
 
+    // Log audit event for order creation (best-effort)
+    auditLog({
+      actorId: session.user.id,
+      actorType: "USER",
+      action: "ORDER_CREATED",
+      resourceType: "Order",
+      resourceId: order.id,
+      metadata: { orderNumber: order.orderNumber, total: order.total, items: order.items?.length ?? undefined },
+    }).catch(() => {});
+
     return NextResponse.json(
       {
         success: true,
         orderId: order.id,
         paymentRequired: order.total !== 0,
         orderStatus: order.status,
+        total: order.total,
       },
       { status: 201 }
     );

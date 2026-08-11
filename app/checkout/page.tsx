@@ -20,6 +20,7 @@ export default function ProductionCheckoutPage() {
   const [confirmedOrderId, setConfirmedOrderId] = useState<string>("");
   const [paymentStatus, setPaymentStatus] = useState<"pending" | "paid" | "failed">("pending");
   const [orderError, setOrderError] = useState<string | null>(null);
+  const [checkoutRequestId, setCheckoutRequestId] = useState<string>("");
   const pollingRef = useRef<number | null>(null);
 
   const [shipping, setShipping] = useState({ name: "", email: "", phone: "", address: "", city: "" });
@@ -60,7 +61,7 @@ export default function ProductionCheckoutPage() {
       (item.playerName ? 100 : 0) +
       (item.playerNumber ? 100 : 0);
   }, 0), [cart]);
-  const shippingCost = subtotal > 150 ? 0 : 200; // Ksh default shipping
+  const shippingCost = 0; // Shipping is free
   const discountAmount = appliedCoupon?.discountAmount ?? 0;
   const grandTotal = Math.max(0, subtotal + customisationTotal + shippingCost - discountAmount);
 
@@ -72,11 +73,12 @@ export default function ProductionCheckoutPage() {
     };
   }, []);
 
-  async function startOrderStatusPolling(orderId: string) {
+  async function startOrderStatusPolling(orderId: string, checkoutRequestId: string) {
     setPaymentStatus("pending");
     setOrderError(null);
 
     let shouldContinuePolling = true;
+    let queryAttempts = 0;
 
     const checkStatus = async () => {
       try {
@@ -96,7 +98,10 @@ export default function ProductionCheckoutPage() {
           setPaymentStatus("paid");
           clearCart();
           setStep("success");
-        } else if (data.order?.status === "FAILED") {
+          return;
+        }
+
+        if (data.order?.status === "FAILED") {
           shouldContinuePolling = false;
           if (pollingRef.current) {
             window.clearInterval(pollingRef.current);
@@ -104,7 +109,40 @@ export default function ProductionCheckoutPage() {
           }
           setPaymentStatus("failed");
           setOrderError("Your payment could not be verified. Please try again or contact support.");
+          return;
         }
+
+        if (checkoutRequestId && queryAttempts >= 1) {
+          // If the order still shows pending, check M-Pesa directly after a couple of polls.
+          const queryRes = await fetch("/api/payments/mpesa/query", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ checkoutRequestId }),
+          });
+          const queryData = await queryRes.json();
+          if (queryRes.ok) {
+            if (queryData.paid) {
+              setOrderError(
+                "Payment was received by M-Pesa. Waiting for our system to update the order status."
+              );
+            } else if (queryData.cancelled) {
+              shouldContinuePolling = false;
+              if (pollingRef.current) {
+                window.clearInterval(pollingRef.current);
+                pollingRef.current = null;
+              }
+              setPaymentStatus("failed");
+              setOrderError("Payment was cancelled from M-Pesa. Please try again.");
+              return;
+            } else {
+              setOrderError(
+                "Payment is still pending with M-Pesa. Please confirm your transaction on your phone."
+              );
+            }
+          }
+        }
+
+        queryAttempts += 1;
       } catch (err: any) {
         console.error("Order status poll failed:", err);
       }
@@ -149,6 +187,7 @@ export default function ProductionCheckoutPage() {
     );
     if (result) {
       setConfirmedOrderId(result.orderId);
+      setCheckoutRequestId(result.paymentData?.checkoutRequestId || "");
       if (!result.paymentRequired) {
         clearCart();
         setStep("success");
@@ -164,7 +203,7 @@ export default function ProductionCheckoutPage() {
         window.location.href = paymentUrl;
       } else {
         setStep("processing");
-        startOrderStatusPolling(result.orderId);
+        startOrderStatusPolling(result.orderId, result.paymentData?.checkoutRequestId || "");
       }
     }
   };

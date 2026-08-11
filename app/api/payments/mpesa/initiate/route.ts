@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/src/lib/auth";
+import { prisma } from "@/src/lib/prisma";
+import { auditLog } from "@/src/lib/audit";
+import { PaymentMethod } from "@prisma/client";
+import { createMpesaStkPush } from "@/src/lib/mpesa";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -75,49 +79,47 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
 
-    const shortcode = process.env.MPESA_SHORTCODE!;
-    const passkey   = process.env.MPESA_PASSKEY!;
-    const timestamp = getTimestamp();
-    const password  = getPassword(shortcode, passkey, timestamp);
-    const token     = await getAccessToken();
+    console.debug("[M-PESA INITIATE] request payload:", { phone: normalized, amount: amountInt, orderId });
+    const stkData = await createMpesaStkPush({ phone: normalized, amount: amountInt, orderId });
+    console.debug("[M-PESA INITIATE] response:", stkData);
 
-    const stkRes = await fetch(
-      "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          BusinessShortCode: shortcode,
-          Password:          password,
-          Timestamp:         timestamp,
-          TransactionType:   "CustomerPayBillOnline",
-          Amount:            amountInt,
-          PartyA:            normalized,
-          PartyB:            shortcode,
-          PhoneNumber:       normalized,
-          CallBackURL:       process.env.MPESA_CALLBACK_URL!,
-          AccountReference:  `Order-${orderId}`,
-          TransactionDesc:   "Jersey Shop Payment",
-        }),
-      }
-    );
+    const checkoutRequestId = stkData.CheckoutRequestID || stkData?.CheckoutRequestID;
+    const paymentReference = checkoutRequestId || `MPESA-${orderId}-${Date.now()}`;
 
-    const stkData = await stkRes.json();
+    // persist payment and log audit
+    const payment = await prisma.payment.create({
+      data: {
+        orderId,
+        provider: PaymentMethod.MPESA,
+        paymentReference,
+        checkoutRequestId: checkoutRequestId ?? undefined,
+        amount: amountInt,
+        phone: normalized,
+        status: "PENDING",
+        gatewayResponse: stkData,
+      },
+    });
 
-    if (stkData.ResponseCode !== "0") {
-      console.error("STK Push failed:", stkData);
+    auditLog({
+      actorId: session.user.id,
+      actorType: "USER",
+      action: "PAYMENT_INITIATED",
+      resourceType: "Payment",
+      resourceId: payment.id,
+      metadata: { checkoutRequestId, paymentReference, stkData },
+    }).catch(() => {});
+
+    if (stkData?.ResponseCode !== "0" && stkData?.responseCode !== "0") {
+      console.error("[M-PESA INITIATE] STK Push failed:", stkData);
       return NextResponse.json(
-        { error: stkData.errorMessage || "STK Push failed. Please try again." },
+        { error: stkData?.errorMessage || stkData?.error || "STK Push failed. Please try again." },
         { status: 400 }
       );
     }
 
     return NextResponse.json({
       success:           true,
-      checkoutRequestId: stkData.CheckoutRequestID,
+      checkoutRequestId: stkData.CheckoutRequestID || stkData?.CheckoutRequestID,
       message:           "Payment prompt sent to your phone. Enter your M-Pesa PIN to complete.",
     });
   } catch (err) {

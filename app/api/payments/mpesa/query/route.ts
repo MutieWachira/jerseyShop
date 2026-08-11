@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/src/lib/auth";
+import { prisma } from "@/src/lib/prisma";
+import { auditLog } from "@/src/lib/audit";
+import { getMpesaAccessToken } from "@/src/lib/mpesa";
+import { PaymentMethod } from "@prisma/client";
 
 function getTimestamp(): string {
   const now = new Date();
@@ -18,20 +22,8 @@ function getPassword(shortcode: string, passkey: string, timestamp: string): str
   return Buffer.from(`${shortcode}${passkey}${timestamp}`).toString("base64");
 }
 
-async function getAccessToken(): Promise<string> {
-  const credentials = Buffer.from(
-    `${process.env.MPESA_CONSUMER_KEY}:${process.env.MPESA_CONSUMER_SECRET}`
-  ).toString("base64");
-
-  const res = await fetch(
-    "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials",
-    { headers: { Authorization: `Basic ${credentials}` }, cache: "no-store" }
-  );
-
-  if (!res.ok) throw new Error("Failed to get access token");
-  const data = await res.json();
-  return data.access_token;
-}
+// Use centralized helper that throws detailed errors when token fetch fails
+// (see src/lib/mpesa.ts)
 
 // ─── POST /api/payments/mpesa/query ──────────────────────────────────────────
 
@@ -52,7 +44,7 @@ export async function POST(req: NextRequest) {
     const passkey   = process.env.MPESA_PASSKEY!;
     const timestamp = getTimestamp();
     const password  = getPassword(shortcode, passkey, timestamp);
-    const token     = await getAccessToken();
+    const token     = await getMpesaAccessToken();
 
     const res = await fetch(
       "https://sandbox.safaricom.co.ke/mpesa/stkpushquery/v1/query",
@@ -72,16 +64,74 @@ export async function POST(req: NextRequest) {
     );
 
     const data = await res.json();
+    const paid = data.ResultCode === "0";
+    const cancelled = data.ResultCode === "1032";
 
-    // ResultCode 0 = success, 1032 = cancelled, others = pending/failed
+    const payment = await prisma.payment.findFirst({
+      where: { checkoutRequestId, provider: PaymentMethod.MPESA },
+    });
+
+    if (payment) {
+      await prisma.$transaction(async (tx) => {
+        await tx.payment.updateMany({
+          where: { checkoutRequestId },
+          data: {
+            status: paid ? "SUCCESS" : cancelled ? "CANCELLED" : "PROCESSING",
+            gatewayResponse: data,
+          },
+        });
+
+        if (paid) {
+          await tx.order.updateMany({
+            where: { id: payment.orderId, status: { not: "PAID" } },
+            data: { status: "PAID" },
+          });
+          await tx.orderTimeline.create({
+            data: {
+              orderId: payment.orderId,
+              status: "PAID",
+              message: "M-Pesa STK push confirmed via query. Payment marked as PAID.",
+              actor: "SYSTEM",
+              metadata: { checkoutRequestId },
+            },
+          });
+        } else if (cancelled) {
+          await tx.order.updateMany({
+            where: { id: payment.orderId, status: { in: ["PENDING_PAYMENT", "PROCESSING"] } },
+            data: { status: "FAILED" },
+          });
+          await tx.orderTimeline.create({
+            data: {
+              orderId: payment.orderId,
+              status: "FAILED",
+              message: "M-Pesa STK push was cancelled or failed (query).",
+              actor: "SYSTEM",
+              metadata: { checkoutRequestId },
+            },
+          });
+        }
+      });
+
+      // record audit event for the query outcome
+      auditLog({
+        actorId: session.user.id,
+        actorType: "USER",
+        action: "PAYMENT_QUERY",
+        resourceType: "Payment",
+        resourceId: payment.id,
+        metadata: { checkoutRequestId, result: data },
+      }).catch(() => {});
+    }
+
     return NextResponse.json({
-      resultCode:    data.ResultCode,
-      resultDesc:    data.ResultDesc,
-      paid:          data.ResultCode === "0",
-      cancelled:     data.ResultCode === "1032",
+      resultCode: data.ResultCode,
+      resultDesc: data.ResultDesc,
+      paid,
+      cancelled,
     });
   } catch (err) {
     console.error("M-Pesa query error:", err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    const msg = err instanceof Error ? err.message : "Server error";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
