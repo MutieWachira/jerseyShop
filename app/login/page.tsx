@@ -9,6 +9,8 @@ function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "";
+  const safeCallbackUrl =
+    callbackUrl.startsWith("/") && !callbackUrl.startsWith("//") ? callbackUrl : "";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -49,8 +51,6 @@ function LoginPageContent() {
       }
 
       const role = session.user?.role;
-      const safeCallbackUrl = callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "";
-
       if (safeCallbackUrl) {
         router.push(safeCallbackUrl);
         return;
@@ -142,7 +142,7 @@ function LoginPageContent() {
             {/* ✅ Fixed: Changed callbackUrl from /dashboard to /shop */}
             <button
               type="button"
-              onClick={() => signIn("google", { callbackUrl: callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/shop" })}
+              onClick={() => signIn("google", { callbackUrl: safeCallbackUrl || "/shop" })}
               className="text-slate-600 w-full flex items-center justify-center gap-3 border border-slate-300 rounded-xl py-3 hover:bg-slate-50 transition"
             >
                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" className="w-5 h-5">
@@ -157,7 +157,7 @@ function LoginPageContent() {
             
             <button
               type="button"
-              onClick={() => signIn("apple", { callbackUrl: callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/shop" })}
+              onClick={() => signIn("apple", { callbackUrl: safeCallbackUrl || "/shop" })}
               className="w-full flex items-center justify-center gap-3 bg-black text-white rounded-xl py-3 hover:opacity-90 transition"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">

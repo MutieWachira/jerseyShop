@@ -5,6 +5,7 @@ import HeroSlideshow from "@/src/components/HeroSlideshow";
 import { authOptions } from "@/src/lib/auth";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
+import { getProductSales, withProductSales } from "@/src/lib/product-discounts";
 
 interface Product {
   id: number;
@@ -28,6 +29,15 @@ export default async function HomePage() {
     getWeeklyTopProducts(),
     getRetroProducts(),
   ]);
+  const sales = await getProductSales([
+    ...topProducts.map((product) => product?.id).filter((id): id is number => id !== undefined),
+    ...retroProducts.map((product) => product.id),
+  ]);
+  const topProductsWithSales = withProductSales(
+    topProducts.filter((product): product is NonNullable<typeof product> => product !== undefined),
+    sales
+  );
+  const retroProductsWithSales = withProductSales(retroProducts, sales);
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -83,7 +93,7 @@ export default async function HomePage() {
           {/* Right — retro slideshow or static fallback */}
           <div className="relative">
             {retroProducts.length > 0 ? (
-              <HeroSlideshow products={retroProducts} />
+              <HeroSlideshow products={retroProductsWithSales} />
             ) : (
               <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="rounded-[1.5rem] bg-gradient-to-br from-slate-900 via-slate-800 to-slate-700 p-8 text-white">
@@ -133,14 +143,18 @@ export default async function HomePage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
 
-          {topProducts?.map((product: any) => (
+          {topProductsWithSales.map((product) => (
             product && (
               <ProductCard
                 key={product.id}
                 id={product.id}
                 name={product.name}
                 team={product.team}
+                year={product.year}
                 price={product.price}
+                salePrice={product.salePrice}
+                salePercentage={product.salePercentage}
+                saleEventName={product.saleEventName}
                 description={product.description}
                 image={product.image}
                 categoryId={product.categoryId}
@@ -148,7 +162,7 @@ export default async function HomePage() {
             )
           ))}
 
-          {(!topProducts || topProducts.length === 0) && (
+          {topProductsWithSales.length === 0 && (
             <div className="col-span-full text-center p-6 bg-white rounded-xl">
               No sales yet this week
             </div>

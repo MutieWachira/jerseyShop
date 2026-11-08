@@ -13,6 +13,10 @@ type ProductCardProps = {
   image: string;
   description: string;
   categoryId: string;
+  year?: number | null;
+  salePrice?: number;
+  salePercentage?: number;
+  saleEventName?: string | null;
 };
 
 export default function ProductCard({
@@ -23,13 +27,17 @@ export default function ProductCard({
   description,
   image,
   categoryId,
+  year,
+  salePrice,
+  salePercentage,
+  saleEventName,
 }: ProductCardProps) {
   const { toggleWishlist, isInWishlist } = useWishlist();
   const isFavourite = isInWishlist(id);
   const [imageUrl, setImageUrl] = useState(() => {
-    if (!image) return "/placeholder-jersey.png";
-    if (shouldRequestSignedImageUrl(image)) return "/placeholder-jersey.png";
-    return normalizeProductImage(image) || "/placeholder-jersey.png";
+    if (!image) return "/placeholder-jersey.svg";
+    if (shouldRequestSignedImageUrl(image)) return "/placeholder-jersey.svg";
+    return normalizeProductImage(image) || "/placeholder-jersey.svg";
   });
 
   useEffect(() => {
@@ -69,6 +77,7 @@ export default function ProductCard({
       <div className="mt-4 flex flex-col flex-grow">
         <div className="flex-grow">
           <h3 className="text-base font-extrabold text-slate-900 line-clamp-1">{name}</h3>
+          {year && <p className="mt-1 text-xs font-bold text-slate-500">{year} season</p>}
           <p className="mt-1 text-xs text-slate-500 line-clamp-2 min-h-[2.5rem]">
             {description}
           </p>
@@ -77,7 +86,17 @@ export default function ProductCard({
         <div className="mt-4 flex items-center justify-between">
           <div className="flex flex-col">
             <span className="text-xs font-bold text-slate-700 uppercase">Price</span>
-            <span className="text-lg font-black text-slate-900">Ksh {price.toLocaleString()}</span>
+            {salePrice !== undefined ? (
+              <>
+                <span className="text-lg font-black text-rose-600">Ksh {salePrice.toLocaleString()}</span>
+                <span className="text-xs font-bold text-slate-400 line-through">Ksh {price.toLocaleString()}</span>
+                <span className="mt-1 w-fit rounded-full bg-rose-50 px-2 py-0.5 text-[10px] font-black uppercase text-rose-600">
+                  {salePercentage}% off{saleEventName ? ` · ${saleEventName}` : ""}
+                </span>
+              </>
+            ) : (
+              <span className="text-lg font-black text-slate-900">Ksh {price.toLocaleString()}</span>
+            )}
           </div>
 
           {/* Wishlist Toggle Icon */}

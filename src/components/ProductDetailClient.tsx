@@ -17,16 +17,21 @@ interface Product {
   team: string;
   description: string;
   price: number;
+  year?: number | null;
   image: string;
   variants: Variant[];
+  salePrice?: number;
+  salePercentage?: number;
+  saleEventName?: string | null;
 }
 
 export default function ProductDetailClient({ product }: { product: Product }) {
   const { addToCart } = useCart();
+  const [cartMessage, setCartMessage] = useState("");
   const [imageUrl, setImageUrl] = useState(() => {
-    if (!product.image) return "/placeholder-jersey.png";
-    if (shouldRequestSignedImageUrl(product.image)) return "/placeholder-jersey.png";
-    return normalizeProductImage(product.image) || "/placeholder-jersey.png";
+    if (!product.image) return "/placeholder-jersey.svg";
+    if (shouldRequestSignedImageUrl(product.image)) return "/placeholder-jersey.svg";
+    return normalizeProductImage(product.image) || "/placeholder-jersey.svg";
   });
 
   useEffect(() => {
@@ -66,18 +71,19 @@ export default function ProductDetailClient({ product }: { product: Product }) {
       (v) => v.size === selectedSize && v.version === ver && v.stock > 0
     );
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (outOfStock || !selectedVariant) return;
-    addToCart({
+    await addToCart({
       id:        product.id,
       name:      product.name,
-      price:     product.price,
+      price:     product.salePrice ?? product.price,
       image:     product.image,
       quantity,
       size:      selectedSize,
       version:   selectedVersion,
       variantId: selectedVariant.id, // ← was missing — needed for order + stock check
     });
+    setCartMessage(`${product.name} added to cart.`);
   };
 
   return (
@@ -121,15 +127,34 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               <h1 className="mt-1 text-3xl font-extrabold text-slate-900">
                 {product.name}
               </h1>
+              {product.year && (
+                <p className="mt-2 text-sm font-bold text-slate-500">{product.year} season</p>
+              )}
             </div>
 
             <p className="text-slate-600 leading-relaxed text-sm">
               {product.description}
             </p>
 
-            <p className="text-2xl font-black text-slate-900">
-              Ksh {product.price.toLocaleString()}
-            </p>
+            <div>
+              {product.salePrice !== undefined ? (
+                <>
+                  <p className="text-2xl font-black text-rose-600">
+                    Ksh {product.salePrice.toLocaleString()}
+                  </p>
+                  <p className="text-sm font-bold text-slate-400 line-through">
+                    Ksh {product.price.toLocaleString()}
+                  </p>
+                  <p className="mt-1 text-xs font-black uppercase text-rose-600">
+                    {product.salePercentage}% off{product.saleEventName ? ` · ${product.saleEventName}` : ""}
+                  </p>
+                </>
+              ) : (
+                <p className="text-2xl font-black text-slate-900">
+                  Ksh {product.price.toLocaleString()}
+                </p>
+              )}
+            </div>
 
             {outOfStock ? (
               <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-rose-50 border border-rose-200 px-3 py-1 text-xs font-black text-rose-600">
@@ -233,8 +258,13 @@ export default function ProductDetailClient({ product }: { product: Product }) {
               disabled={outOfStock || !selectedVariant}
               className="mt-4 w-full rounded-xl bg-slate-900 py-3.5 font-black text-white transition hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed"
             >
-              {outOfStock ? "Out of Stock" : "Add to Cart"}
+              {outOfStock ? "Out of Stock" : cartMessage ? "Added to Cart" : "Add to Cart"}
             </button>
+            {cartMessage && (
+              <p role="status" className="text-sm font-bold text-emerald-700">
+                {cartMessage}
+              </p>
+            )}
 
           </div>
         </div>

@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
 
       // Validate and collect item snapshots inside the transaction transaction lock
       const processedItems = [];
+      const now = new Date();
       for (const item of items) {
         // Fetch variant dynamically directly from the transaction pipeline state
         const variant = await tx.productVariant.findUnique({
@@ -87,7 +88,20 @@ export async function POST(req: NextRequest) {
         }
 
         // Calculate actual financials based on authenticated server-side pricing data source
-        const unitPrice = variant.product.price;
+        const sale = await tx.discount.findFirst({
+          where: {
+            autoApply: true,
+            active: true,
+            startsAt: { lte: now },
+            OR: [{ expiresAt: null }, { expiresAt: { gte: now } }],
+            products: { some: { productId: variant.productId } },
+          },
+          orderBy: [{ percentage: "desc" }, { createdAt: "desc" }],
+          select: { percentage: true },
+        });
+        const unitPrice = sale
+          ? Math.round(variant.product.price * (100 - sale.percentage) / 100)
+          : variant.product.price;
         const customizationCost = item.customizationCost || 0;
         const lineTotal = unitPrice * item.quantity + customizationCost;
         
@@ -124,21 +138,28 @@ export async function POST(req: NextRequest) {
           where: { code: discountCode.trim().toUpperCase() }
         });
 
-        if (discount && discount.active && (!discount.expiresAt || new Date() <= discount.expiresAt)) {
-          if (discount.maxUses === null || discount.usedCount < discount.maxUses) {
-            discountId = discount.id;
-            discountPct = discount.percentage;
-            discountAmount = Math.floor(preDiscountTotal * (discountPct / 100));
-            if (discount.maximumDiscount && discountAmount > discount.maximumDiscount) {
-              discountAmount = discount.maximumDiscount;
-            }
-
-            await tx.discount.update({
-              where: { id: discount.id },
-              data: { usedCount: { increment: 1 } }
-            });
-          }
+        if (
+          !discount ||
+          discount.autoApply ||
+          !discount.active ||
+          (discount.startsAt && now < discount.startsAt) ||
+          (discount.expiresAt && now > discount.expiresAt) ||
+          (discount.maxUses !== null && discount.usedCount >= discount.maxUses)
+        ) {
+          throw new Error("The discount code is no longer valid. Please remove it and try again.");
         }
+
+        discountId = discount.id;
+        discountPct = discount.percentage;
+        discountAmount = Math.floor(preDiscountTotal * (discountPct / 100));
+        if (discount.maximumDiscount && discountAmount > discount.maximumDiscount) {
+          discountAmount = discount.maximumDiscount;
+        }
+
+        await tx.discount.update({
+          where: { id: discount.id },
+          data: { usedCount: { increment: 1 } }
+        });
       }
 
       const finalTotal = Math.max(0, preDiscountTotal - discountAmount);

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
+import { Prisma } from "@prisma/client";
+import { getProductSales } from "@/src/lib/product-discounts";
 
 // ─── Shared select shape ──────────────────────────────────────────────────────
 // Returns enough data to reconstruct a CartItem on the frontend
@@ -24,6 +26,23 @@ const CART_INCLUDE = {
   },
 } as const;
 
+type CartRecord = Prisma.CartItemGetPayload<{ include: typeof CART_INCLUDE }>;
+
+async function applySalePrices(items: CartRecord[]) {
+  const sales = await getProductSales(items.map((item) => item.variant.product.id));
+  return items.map((item) => {
+    const sale = sales.get(item.variant.product.id);
+    if (!sale) return item;
+    return {
+      ...item,
+      variant: {
+        ...item.variant,
+        product: { ...item.variant.product, price: sale.salePrice },
+      },
+    };
+  });
+}
+
 // ─── GET /api/cart — load user's cart from DB ─────────────────────────────────
 
 export async function GET(req: NextRequest) {
@@ -38,7 +57,7 @@ export async function GET(req: NextRequest) {
       include: CART_INCLUDE,
     });
 
-    return NextResponse.json({ items });
+    return NextResponse.json({ items: await applySalePrices(items) });
   } catch (err) {
     console.error("GET cart error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
@@ -103,7 +122,8 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ success: true, item: cartItem });
+    const [pricedItem] = await applySalePrices([cartItem]);
+    return NextResponse.json({ success: true, item: pricedItem });
   } catch (err) {
     console.error("POST cart error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
@@ -240,7 +260,11 @@ export async function PUT(req: NextRequest) {
       include: CART_INCLUDE,
     });
 
-    return NextResponse.json({ success: true, merged, items: updatedItems });
+    return NextResponse.json({
+      success: true,
+      merged,
+      items: await applySalePrices(updatedItems),
+    });
   } catch (err) {
     console.error("PUT cart merge error:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

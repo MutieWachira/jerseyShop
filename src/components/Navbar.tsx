@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useMemo, useSyncExternalStore } from "react";
 import { useCart } from "@/src/context/CartContext";
 import { useWishlist } from "@/src/context/WishlistContext";
 import { useSession, signOut } from "next-auth/react";
@@ -13,6 +13,10 @@ type NavLinkProps = {
   label: string;
   onClick?: () => void;
 };
+
+const subscribeToHydration = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
 
 function NavLink({ href, label, onClick }: NavLinkProps) {
   const pathname = usePathname();
@@ -35,34 +39,30 @@ function NavLink({ href, label, onClick }: NavLinkProps) {
 
 export default function Navbar() {
   const pathname = usePathname();
-  const [mounted, setMounted] = useState(false);
-  const [loginPath, setLoginPath] = useState<string>("/login");
+  const searchParams = useSearchParams();
+  const currentQuery = searchParams.toString();
+  const mounted = useSyncExternalStore(
+    subscribeToHydration,
+    getClientSnapshot,
+    getServerSnapshot
+  );
+  const loginPath = useMemo(() => {
+    const path = pathname || "/";
+    const callbackUrl = path + (currentQuery ? `?${currentQuery}` : "");
+    return `/login?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+  }, [pathname, currentQuery]);
 
-  // compute search params and derived loginPath only on the client after mount
-  useEffect(() => {
-    setMounted(true);
-    try {
-      const searchParams = new URLSearchParams(window.location.search);
-      const currentQuery = searchParams.toString();
-      const path = pathname || "/";
-      const cb = encodeURIComponent(path + (currentQuery ? `?${currentQuery}` : ""));
-      setLoginPath(`/login?callbackUrl=${cb}`);
-    } catch (e) {
-      setLoginPath("/login");
-    }
-  }, [pathname]);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [openMenuForPath, setOpenMenuForPath] = useState<string | null>(null);
+  const menuOpen = openMenuForPath === pathname;
   const { cart } = useCart();
   const { wishlist } = useWishlist();
   const { data: session, status } = useSession();
   const loading = status === "loading";
 
-  useEffect(() => setMenuOpen(false), [pathname]);
-
   if (pathname.startsWith("/admin")) return null;
 
-  const totalItems = (cart ?? []).reduce((sum, item) => sum + item.quantity, 0);
-  const wishlistCount = wishlist?.length || 0;
+  const totalItems = mounted ? (cart ?? []).reduce((sum, item) => sum + item.quantity, 0) : 0;
+  const wishlistCount = mounted ? wishlist?.length || 0 : 0;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-slate-100 bg-white/80 backdrop-blur-md">
@@ -146,7 +146,7 @@ export default function Navbar() {
             )}
 
             <button
-              onClick={() => setMenuOpen(!menuOpen)}
+              onClick={() => setOpenMenuForPath(menuOpen ? null : pathname)}
               className="md:hidden flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 text-slate-900"
             >
               {menuOpen ? <X size={20} /> : <Menu size={20} />}
@@ -161,12 +161,12 @@ export default function Navbar() {
           }`}
         >
           <div className="flex flex-col gap-2 rounded-3xl border border-slate-100 bg-slate-50/50 p-4 shadow-inner">
-            <NavLink href="/" label="Home" />
-            <NavLink href="/shop" label="Shop" />
-            <NavLink href="/categories" label="Categories" />
-            <NavLink href="/wishlist" label={`Wishlist (${wishlistCount})`} />
+            <NavLink href="/" label="Home" onClick={() => setOpenMenuForPath(null)} />
+            <NavLink href="/shop" label="Shop" onClick={() => setOpenMenuForPath(null)} />
+            <NavLink href="/categories" label="Categories" onClick={() => setOpenMenuForPath(null)} />
+            <NavLink href="/wishlist" label={`Wishlist (${wishlistCount})`} onClick={() => setOpenMenuForPath(null)} />
             {/* ✅ Orders link: Mobile (Visible only when logged in) */}
-            {session && <NavLink href="/orders" label="My Orders" />}
+            {session && <NavLink href="/orders" label="My Orders" onClick={() => setOpenMenuForPath(null)} />}
 
             <div className="mt-4 grid grid-cols-2 gap-3">
               <Link

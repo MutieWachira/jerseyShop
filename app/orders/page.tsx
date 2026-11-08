@@ -1,8 +1,8 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
-import { normalizeProductImage } from "@/src/lib/image";
 import { redirect } from "next/navigation";
+import CartItemImage from "@/src/components/CartItemImage";
 
 export default async function OrdersPage() {
   const session = await getServerSession(authOptions);
@@ -30,7 +30,7 @@ export default async function OrdersPage() {
         
         {orders.length === 0 ? (
           <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center">
-            <p className="text-slate-500">You haven't placed any orders yet.</p>
+            <p className="text-slate-500">You have not placed any orders yet.</p>
           </div>
         ) : (
           <div className="space-y-6">
@@ -53,10 +53,9 @@ export default async function OrdersPage() {
                 <div className="space-y-4">
                   {order.items.map((item) => (
                     <div key={item.id} className="flex items-center gap-4">
-                      <img
-                        src={normalizeProductImage(item.product?.image || item.image) || "/uploads/placeholder.png"}
-                        alt={item.product?.name || item.productName || "Product image"}
-                        className="w-16 h-16 rounded-xl object-cover bg-slate-100"
+                      <CartItemImage
+                        image={item.product?.image || item.image || undefined}
+                        name={item.product?.name || item.productName || "Product image"}
                       />
                       <div className="flex-grow">
                         <p className="text-sm font-extrabold text-slate-900">{item.product?.name || item.productName}</p>

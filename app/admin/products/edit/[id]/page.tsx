@@ -31,11 +31,12 @@ export default function EditProduct() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
+  const [year, setYear] = useState("");
   const [team, setTeam] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [image, setImage] = useState("");
-  const [imageUrl, setImageUrl] = useState<string>("/placeholder-jersey.png");
+  const [imageUrl, setImageUrl] = useState<string>("/placeholder-jersey.svg");
 
   const [loading, setLoading] = useState(false);
   const [fetching, setFetching] = useState(true);
@@ -60,11 +61,12 @@ export default function EditProduct() {
         setName(data.name || "");
         setDescription(data.description || "");
         setPrice(data.price?.toString() || "");
+        setYear(data.year?.toString() || "");
         setTeam(data.team || "");
         setCategoryId(data.categoryId || "");
         const resolvedImage = data.image || "";
         setImage(resolvedImage);
-        setImageUrl(normalizeProductImage(resolvedImage) || "/placeholder-jersey.png");
+        setImageUrl(normalizeProductImage(resolvedImage) || "/placeholder-jersey.svg");
 
         if (shouldRequestSignedImageUrl(resolvedImage)) {
           const signedUrl = await resolveProductImageUrl(resolvedImage);
@@ -178,6 +180,7 @@ export default function EditProduct() {
           name,
           description,
           price: enteredPrice,
+          year: year ? Number(year) : null,
           team,
           categoryId,
           image: imagePath,
@@ -252,6 +255,20 @@ export default function EditProduct() {
               <input
                 value={team}
                 onChange={(e) => setTeam(e.target.value)}
+                className="w-full border border-slate-200 rounded-xl p-3"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-bold">Jersey Year</label>
+              <input
+                type="number"
+                min={1900}
+                max={2100}
+                step={1}
+                value={year}
+                onChange={(e) => setYear(e.target.value)}
+                placeholder="e.g. 2024"
                 className="w-full border border-slate-200 rounded-xl p-3"
               />
             </div>

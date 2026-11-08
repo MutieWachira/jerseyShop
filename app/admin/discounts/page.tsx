@@ -11,6 +11,7 @@ import {
   ToggleLeft,
   ToggleRight,
   X,
+  Pencil,
   CheckCircle2,
   AlertCircle,
 } from "lucide-react";
@@ -19,14 +20,26 @@ import {
 
 interface Discount {
   id:         string;
-  code:       string;
+  code:       string | null;
   percentage: number;
+  eventName:  string | null;
+  autoApply:  boolean;
   maxUses:    number | null;
   usedCount:  number;
+  startsAt:   string | null;
   expiresAt:  string | null;
   active:     boolean;
   createdAt:  string;
+  products:   { product: { id: number; name: string; team: string } }[];
   _count:     { orders: number };
+}
+
+interface ProductOption {
+  id: number;
+  name: string;
+  team: string;
+  price: number;
+  active: boolean;
 }
 
 type Feedback = { type: "success" | "error"; message: string } | null;
@@ -46,38 +59,93 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
+function getLocalDate(value: Date) {
+  const year = value.getFullYear();
+  const month = String(value.getMonth() + 1).padStart(2, "0");
+  const day = String(value.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function getLocalDateTime(value: string | null | undefined) {
+  if (!value) return "";
+  const date = new Date(value);
+  const localDate = getLocalDate(date);
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${localDate}T${hours}:${minutes}`;
+}
+
 // ─── Create Modal ─────────────────────────────────────────────────────────────
 
-function CreateModal({
+function DiscountModal({
+  discount,
   onClose,
-  onCreated,
+  onSaved,
 }: {
+  discount?: Discount;
   onClose: () => void;
-  onCreated: (d: Discount) => void;
+  onSaved: (d: Discount) => void;
 }) {
-  const [code,       setCode]       = useState("");
-  const [percentage, setPercentage] = useState("");
-  const [maxUses,    setMaxUses]    = useState("");
-  const [unlimited,  setUnlimited]  = useState(false);
-  const [expiresAt,  setExpiresAt]  = useState("");
-  const [noExpiry,   setNoExpiry]   = useState(false);
+  const [code,       setCode]       = useState(discount?.code ?? "");
+  const [percentage, setPercentage] = useState(discount ? String(discount.percentage) : "");
+  const [eventName,  setEventName]  = useState(discount?.eventName ?? "");
+  const [autoApply,  setAutoApply]  = useState(discount?.autoApply ?? false);
+  const [maxUses,    setMaxUses]    = useState(discount?.maxUses?.toString() ?? "");
+  const [unlimited,  setUnlimited]  = useState(discount ? discount.maxUses === null : false);
+  const [startsAt,   setStartsAt]   = useState(getLocalDateTime(discount?.startsAt));
+  const [expiresAt,  setExpiresAt]  = useState(getLocalDateTime(discount?.expiresAt));
+  const [noExpiry,   setNoExpiry]   = useState(discount ? !discount.expiresAt : false);
+  const [products,   setProducts]   = useState<ProductOption[]>([]);
+  const [selectedProductIds, setSelectedProductIds] = useState<number[]>(
+    discount?.products.map(({ product }) => product.id) ?? []
+  );
+  const [productsLoading, setProductsLoading] = useState(true);
   const [loading,    setLoading]    = useState(false);
   const [error,      setError]      = useState("");
+  const today = getLocalDate(new Date());
+  const minimumDateTime = `${today}T00:00`;
 
-  const handleCreate = async () => {
+  useEffect(() => {
+    axios.get("/api/products")
+      .then((res) => setProducts(res.data))
+      .catch(() => setError("Could not load jerseys. Please close and reopen this form."))
+      .finally(() => setProductsLoading(false));
+  }, []);
+
+  const handleSave = async () => {
     setError("");
+    if (!discount && autoApply && startsAt && startsAt.slice(0, 10) < today) {
+      setError("The sale start date cannot be before today");
+      return;
+    }
+    if (!discount && (autoApply || !noExpiry) && expiresAt && expiresAt.slice(0, 10) < today) {
+      setError("The expiry date cannot be before today");
+      return;
+    }
+
     setLoading(true);
     try {
-      const res = await axios.post("/api/admin/discounts", {
-        code,
+      const payload = {
+        code: autoApply ? null : code,
         percentage,
-        maxUses:   unlimited  ? null : maxUses  || null,
-        expiresAt: noExpiry   ? null : expiresAt || null,
-      });
-      onCreated(res.data.discount);
+        eventName,
+        autoApply,
+        productIds: autoApply ? selectedProductIds : [],
+        maxUses: autoApply || unlimited ? null : maxUses || null,
+        startsAt: autoApply && startsAt ? new Date(startsAt).toISOString() : null,
+        expiresAt: autoApply || !noExpiry
+          ? expiresAt ? new Date(expiresAt).toISOString() : null
+          : null,
+        dateTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      };
+      const res = discount
+        ? await axios.patch(`/api/admin/discounts/${discount.id}`, payload)
+        : await axios.post("/api/admin/discounts", payload);
+      onSaved(res.data.discount);
       onClose();
-    } catch (err: any) {
-      setError(err?.response?.data?.error || "Failed to create discount");
+    } catch (err: unknown) {
+      const message = axios.isAxiosError(err) ? err.response?.data?.error : null;
+      setError(typeof message === "string" ? message : `Failed to ${discount ? "update" : "create"} discount`);
     } finally {
       setLoading(false);
     }
@@ -85,9 +153,9 @@ function CreateModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-[2rem] border border-slate-200 shadow-2xl w-full max-w-md">
+      <div className="bg-white rounded-[2rem] border border-slate-200 shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-base font-black text-slate-900">Create Discount Code</h2>
+          <h2 className="text-base font-black text-slate-900">{discount ? "Edit Discount" : "Create Discount"}</h2>
           <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 transition text-slate-400">
             <X size={16} />
           </button>
@@ -95,15 +163,95 @@ function CreateModal({
 
         <div className="p-6 space-y-4">
 
-          <Field label="Discount Code" hint="Letters, numbers, hyphens and underscores only">
-            <input
-              value={code}
-              onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder="e.g. SAVE20"
-              maxLength={20}
-              className={inputClass}
-            />
-          </Field>
+          {!discount && <Field label="Discount Type">
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setAutoApply(false);
+                  setStartsAt("");
+                  setExpiresAt("");
+                }}
+                className={`rounded-xl border p-3 text-left text-sm font-bold ${!autoApply ? "border-slate-900 bg-slate-50 text-slate-900" : "border-slate-200 text-slate-500"}`}
+              >
+                Coupon code
+                <span className="mt-1 block text-xs font-medium text-slate-500">Customer enters a code</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAutoApply(true);
+                  setStartsAt("");
+                  setExpiresAt("");
+                  setNoExpiry(false);
+                }}
+                className={`rounded-xl border p-3 text-left text-sm font-bold ${autoApply ? "border-slate-900 bg-slate-50 text-slate-900" : "border-slate-200 text-slate-500"}`}
+              >
+                Automatic sale
+                <span className="mt-1 block text-xs font-medium text-slate-500">Sale price on chosen jerseys</span>
+              </button>
+            </div>
+          </Field>}
+          {discount && (
+            <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-600">
+              {autoApply ? "Automatic sale" : "Coupon code"}
+            </p>
+          )}
+
+          {autoApply ? (
+            <>
+              <Field label="Event Name" hint="For example, Black Friday">
+                <input
+                  value={eventName}
+                  onChange={(e) => setEventName(e.target.value)}
+                  placeholder="Black Friday"
+                  maxLength={80}
+                  className={inputClass}
+                />
+              </Field>
+
+              <Field label="Jerseys on Sale" hint={`${selectedProductIds.length} selected`}>
+                <div className="max-h-44 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100">
+                  {productsLoading ? (
+                    <p className="p-4 text-sm text-slate-500">Loading jerseys...</p>
+                  ) : products.length === 0 ? (
+                    <p className="p-4 text-sm text-slate-500">No active jerseys available.</p>
+                  ) : products.map((product) => (
+                    <label key={product.id} className={`flex items-center gap-3 p-3 hover:bg-slate-50 ${product.active ? "cursor-pointer" : "cursor-not-allowed opacity-60"}`}>
+                      <input
+                        type="checkbox"
+                        checked={selectedProductIds.includes(product.id)}
+                        disabled={!product.active && !selectedProductIds.includes(product.id)}
+                        onChange={(e) => setSelectedProductIds((current) =>
+                          e.target.checked
+                            ? [...current, product.id]
+                            : current.filter((id) => id !== product.id)
+                        )}
+                        className="rounded"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-bold text-slate-800">{product.name}</span>
+                        <span className="block text-xs text-slate-500">
+                          {product.team} · Ksh {product.price.toLocaleString()}
+                          {!product.active && " · Inactive"}
+                        </span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </Field>
+            </>
+          ) : (
+            <Field label="Discount Code" hint="Letters, numbers, hyphens and underscores only">
+              <input
+                value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())}
+                placeholder="e.g. SAVE20"
+                maxLength={20}
+                className={inputClass}
+              />
+            </Field>
+          )}
 
           <Field label="Percentage Off" hint="Whole number between 1 and 100">
             <div className="relative">
@@ -120,45 +268,62 @@ function CreateModal({
             </div>
           </Field>
 
-          <Field label="Max Uses">
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={unlimited}
-                  onChange={(e) => setUnlimited(e.target.checked)}
-                  className="rounded"
-                />
-                <span className="text-sm font-bold text-slate-700">Unlimited uses</span>
-              </label>
-              {!unlimited && (
-                <input
-                  type="number"
-                  min={1}
-                  value={maxUses}
-                  onChange={(e) => setMaxUses(e.target.value)}
-                  placeholder="e.g. 100"
-                  className={inputClass}
-                />
-              )}
-            </div>
-          </Field>
+          {!autoApply && (
+            <Field label="Max Uses">
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={unlimited}
+                    onChange={(e) => setUnlimited(e.target.checked)}
+                    className="rounded"
+                  />
+                  <span className="text-sm font-bold text-slate-700">Unlimited uses</span>
+                </label>
+                {!unlimited && (
+                  <input
+                    type="number"
+                    min={1}
+                    value={maxUses}
+                    onChange={(e) => setMaxUses(e.target.value)}
+                    placeholder="e.g. 100"
+                    className={inputClass}
+                  />
+                )}
+              </div>
+            </Field>
+          )}
 
-          <Field label="Expiry Date">
+          {autoApply && (
+            <Field label="Starts At">
+              <input
+                type="datetime-local"
+                value={startsAt}
+                min={discount ? undefined : minimumDateTime}
+                onChange={(e) => setStartsAt(e.target.value)}
+                className={inputClass}
+              />
+            </Field>
+          )}
+
+          <Field label={autoApply ? "Sale Ends At" : "Expiry Date"}>
             <div className="space-y-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={noExpiry}
-                  onChange={(e) => setNoExpiry(e.target.checked)}
-                  className="rounded"
-                />
-                <span className="text-sm font-bold text-slate-700">Never expires</span>
-              </label>
-              {!noExpiry && (
+              {!autoApply && (
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={noExpiry}
+                    onChange={(e) => setNoExpiry(e.target.checked)}
+                    className="rounded"
+                  />
+                  <span className="text-sm font-bold text-slate-700">Never expires</span>
+                </label>
+              )}
+              {(autoApply || !noExpiry) && (
                 <input
                   type="datetime-local"
                   value={expiresAt}
+                  min={discount ? undefined : minimumDateTime}
                   onChange={(e) => setExpiresAt(e.target.value)}
                   className={inputClass}
                 />
@@ -174,11 +339,13 @@ function CreateModal({
           )}
 
           <button
-            onClick={handleCreate}
-            disabled={loading}
+            onClick={handleSave}
+            disabled={loading || (autoApply && productsLoading)}
             className="w-full rounded-xl bg-slate-900 py-3 font-black text-white hover:bg-slate-800 transition disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {loading ? <><Loader2 size={14} className="animate-spin" /> Creating...</> : "Create Code"}
+            {loading
+              ? <><Loader2 size={14} className="animate-spin" /> {discount ? "Saving..." : "Creating..."}</>
+              : discount ? "Save Changes" : autoApply ? "Create Sale Event" : "Create Code"}
           </button>
         </div>
       </div>
@@ -192,6 +359,7 @@ export default function AdminDiscountsPage() {
   const [discounts,    setDiscounts]    = useState<Discount[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [showModal,    setShowModal]    = useState(false);
+  const [editingDiscount, setEditingDiscount] = useState<Discount | null>(null);
   const [feedback,     setFeedback]     = useState<Feedback>(null);
   const [deletingId,   setDeletingId]   = useState<string | null>(null);
   const [togglingId,   setTogglingId]   = useState<string | null>(null);
@@ -249,6 +417,8 @@ export default function AdminDiscountsPage() {
   const getStatus = (d: Discount) => {
     if (!d.active)           return { label: "Inactive",  style: "bg-slate-100 text-slate-500 border-slate-200" };
     if (isExpired(d.expiresAt)) return { label: "Expired",  style: "bg-rose-50 text-rose-600 border-rose-200" };
+    if (d.startsAt && new Date() < new Date(d.startsAt))
+                             return { label: "Scheduled", style: "bg-blue-50 text-blue-600 border-blue-200" };
     if (d.maxUses !== null && d.usedCount >= d.maxUses)
                              return { label: "Used Up",   style: "bg-amber-50 text-amber-600 border-amber-200" };
     return                          { label: "Active",    style: "bg-emerald-50 text-emerald-600 border-emerald-200" };
@@ -265,14 +435,14 @@ export default function AdminDiscountsPage() {
           <div>
             <h1 className="text-3xl font-black text-slate-900 tracking-tight">Discounts</h1>
             <p className="text-slate-500 text-sm font-medium mt-1">
-              Create and manage discount codes for your shop
+              Manage coupon codes and scheduled jersey sale events
             </p>
           </div>
           <button
             onClick={() => setShowModal(true)}
             className="flex items-center gap-2 bg-slate-900 text-white px-6 py-3 rounded-2xl font-black hover:bg-slate-800 transition text-sm"
           >
-            <Plus size={16} /> Create Code
+            <Plus size={16} /> Create Discount
           </button>
         </div>
 
@@ -303,10 +473,10 @@ export default function AdminDiscountsPage() {
               <table className="w-full text-left border-collapse">
                 <thead className="bg-slate-50/50 border-b border-slate-100">
                   <tr>
-                    <th className="p-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Code</th>
+                    <th className="p-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Discount / Event</th>
                     <th className="p-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Discount</th>
                     <th className="p-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Uses</th>
-                    <th className="p-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Expires</th>
+                    <th className="p-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Sale Dates</th>
                     <th className="p-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
                     <th className="p-6 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Actions</th>
                   </tr>
@@ -318,8 +488,13 @@ export default function AdminDiscountsPage() {
                       <tr key={d.id} className="hover:bg-slate-50/50 transition">
 
                         <td className="p-6">
-                          <span className="font-black text-slate-900 font-mono tracking-widest text-sm">
-                            {d.code}
+                          <span className="block font-black text-slate-900 font-mono tracking-widest text-sm">
+                            {d.code || d.eventName || "Automatic Sale"}
+                          </span>
+                          <span className="mt-1 block text-xs text-slate-500">
+                            {d.autoApply
+                              ? `${d.eventName} · ${d.products.length} jersey${d.products.length === 1 ? "" : "s"}`
+                              : "Coupon code"}
                           </span>
                         </td>
 
@@ -349,12 +524,18 @@ export default function AdminDiscountsPage() {
                         </td>
 
                         <td className="p-6 text-sm text-slate-500 font-medium">
+                          {d.autoApply && d.startsAt && (
+                            <span className="block text-xs text-slate-400">
+                              From {new Date(d.startsAt).toLocaleDateString("en-KE", {
+                                day: "numeric", month: "short", year: "numeric",
+                              })}
+                            </span>
+                          )}
                           {d.expiresAt
                             ? new Date(d.expiresAt).toLocaleDateString("en-KE", {
                                 day: "numeric", month: "short", year: "numeric",
                               })
-                            : <span className="text-slate-400">Never</span>
-                          }
+                            : <span className="text-slate-400">Never</span>}
                         </td>
 
                         <td className="p-6">
@@ -365,6 +546,15 @@ export default function AdminDiscountsPage() {
 
                         <td className="p-6">
                           <div className="flex justify-end gap-2">
+
+                            <button
+                              onClick={() => setEditingDiscount(d)}
+                              className="rounded-xl bg-blue-50 p-2 text-blue-500 transition hover:bg-blue-100 hover:text-blue-700"
+                              title="Edit discount"
+                              aria-label={`Edit ${d.code || d.eventName || "discount"}`}
+                            >
+                              <Pencil size={16} />
+                            </button>
 
                             {/* Toggle active */}
                             <button
@@ -405,12 +595,12 @@ export default function AdminDiscountsPage() {
                       <td colSpan={6} className="p-20 text-center">
                         <div className="flex flex-col items-center gap-2">
                           <Tag size={48} className="text-slate-200" />
-                          <p className="text-slate-400 font-bold">No discount codes yet</p>
+                          <p className="text-slate-400 font-bold">No discounts yet</p>
                           <button
                             onClick={() => setShowModal(true)}
                             className="mt-2 text-xs font-black text-slate-900 underline"
                           >
-                            Create your first code
+                            Create your first discount
                           </button>
                         </div>
                       </td>
@@ -423,12 +613,27 @@ export default function AdminDiscountsPage() {
         )}
       </main>
 
-      {showModal && (
-        <CreateModal
-          onClose={() => setShowModal(false)}
-          onCreated={(d) => {
-            setDiscounts((prev) => [d as any, ...prev]);
-            withAutoClear({ type: "success", message: `Code "${d.code}" created successfully` });
+      {(showModal || editingDiscount) && (
+        <DiscountModal
+          discount={editingDiscount ?? undefined}
+          onClose={() => {
+            setShowModal(false);
+            setEditingDiscount(null);
+          }}
+          onSaved={(d) => {
+            setDiscounts((prev) => editingDiscount
+              ? prev.map((current) => current.id === d.id ? d : current)
+              : [d, ...prev]
+            );
+            withAutoClear({
+              type: "success",
+              message: editingDiscount
+                ? "Discount updated successfully"
+                : d.autoApply
+                  ? `Sale event "${d.eventName}" created successfully`
+                  : `Code "${d.code}" created successfully`,
+            });
+            setEditingDiscount(null);
           }}
         />
       )}

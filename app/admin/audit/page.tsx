@@ -6,12 +6,9 @@ import Link from "next/link";
 
 interface AuditLogEntry {
   id: string;
-  userId: string | null;
-  event: string;
-  resource: string;
-  description: string;
-  ip: string;
-  userAgent: string | null;
+  actorId: string | null;
+  action: string;
+  resourceType: string | null;
   metadata: Record<string, unknown>;
   createdAt: string;
 }
@@ -23,9 +20,11 @@ export default function AuditPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [error, setError] = useState("");
 
-  const fetchLogs = async () => {
-    setLoading(true);
+  useEffect(() => {
+    let active = true;
     const params = new URLSearchParams({
       page: String(page),
       limit: "30",
@@ -33,16 +32,32 @@ export default function AuditPage() {
     if (resource) params.set("resource", resource);
     if (event) params.set("event", event);
 
-    const res = await fetch(`/api/admin/audit?${params.toString()}`);
-    const data = await res.json();
-    setLogs(data.logs ?? []);
-    setTotal(data.total ?? 0);
-    setLoading(false);
-  };
+    const loadLogs = async () => {
+      try {
+        const res = await fetch(`/api/admin/audit?${params.toString()}`);
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || "Unable to load audit logs.");
+        }
+        if (!active) return;
+        setLogs(data.logs ?? []);
+        setTotal(data.total ?? 0);
+        setError("");
+      } catch (loadError) {
+        if (!active) return;
+        setLogs([]);
+        setTotal(0);
+        setError(loadError instanceof Error ? loadError.message : "Unable to load audit logs.");
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
 
-  useEffect(() => {
-    fetchLogs();
-  }, [page, resource, event]);
+    void loadLogs();
+    return () => {
+      active = false;
+    };
+  }, [page, resource, event, refreshKey]);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -72,7 +87,10 @@ export default function AuditPage() {
                 <span className="text-sm font-semibold text-slate-700">Resource</span>
                 <input
                   value={resource}
-                  onChange={(event) => setResource(event.target.value)}
+                  onChange={(inputEvent) => {
+                    setLoading(true);
+                    setResource(inputEvent.target.value);
+                  }}
                   placeholder="categories"
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
                 />
@@ -81,14 +99,21 @@ export default function AuditPage() {
                 <span className="text-sm font-semibold text-slate-700">Event</span>
                 <input
                   value={event}
-                  onChange={(event) => setEvent(event.target.value)}
+                  onChange={(inputEvent) => {
+                    setLoading(true);
+                    setEvent(inputEvent.target.value);
+                  }}
                   placeholder="VIEW_CATEGORIES"
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
                 />
               </label>
               <div className="flex items-end">
                 <button
-                  onClick={() => setPage(1)}
+                  onClick={() => {
+                    setLoading(true);
+                    setPage(1);
+                    setRefreshKey((current) => current + 1);
+                  }}
                   className="w-full rounded-3xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800"
                 >
                   Apply filters
@@ -111,6 +136,10 @@ export default function AuditPage() {
                 <div key={index} className="h-24 rounded-[1.75rem] bg-slate-100 animate-pulse" />
               ))}
             </div>
+          ) : error ? (
+            <div role="alert" className="rounded-[1.5rem] border border-rose-200 bg-rose-50 p-6 text-center text-sm text-rose-700">
+              {error}
+            </div>
           ) : logs.length === 0 ? (
             <div className="rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 p-12 text-center text-sm text-slate-500">
               No audit entries found for the current filter.
@@ -121,19 +150,21 @@ export default function AuditPage() {
                 <div key={log.id} className="rounded-[2rem] border border-slate-200 bg-slate-50 p-5 shadow-sm">
                   <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">{log.event}</p>
-                      <p className="mt-2 text-lg font-semibold text-slate-900">{log.resource}</p>
+                      <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">{log.action}</p>
+                      <p className="mt-2 text-lg font-semibold text-slate-900">{log.resourceType ?? "System"}</p>
                     </div>
                     <div className="text-right text-sm text-slate-500">
                       <p>{new Date(log.createdAt).toLocaleString()}</p>
-                      <p className="mt-1">User: {log.userId ?? "System"}</p>
+                      <p className="mt-1">User: {log.actorId ?? "System"}</p>
                     </div>
                   </div>
                   <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <p className="text-sm text-slate-600">{log.description}</p>
+                    <p className="text-sm text-slate-600">
+                      {typeof log.metadata?.description === "string" ? log.metadata.description : log.action}
+                    </p>
                     <div className="space-y-1 text-sm text-slate-500">
-                      <p><span className="font-semibold text-slate-700">IP:</span> {log.ip}</p>
-                      <p><span className="font-semibold text-slate-700">Agent:</span> {log.userAgent ?? "Unknown"}</p>
+                      <p><span className="font-semibold text-slate-700">IP:</span> {typeof log.metadata?.ip === "string" ? log.metadata.ip : "Unknown"}</p>
+                      <p><span className="font-semibold text-slate-700">Agent:</span> {typeof log.metadata?.userAgent === "string" ? log.metadata.userAgent : "Unknown"}</p>
                     </div>
                   </div>
                   {Object.keys(log.metadata || {}).length > 0 && (
@@ -149,14 +180,20 @@ export default function AuditPage() {
 
         <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
           <button
-            onClick={() => setPage((current) => Math.max(1, current - 1))}
+            onClick={() => {
+              setLoading(true);
+              setPage((current) => Math.max(1, current - 1));
+            }}
             disabled={page <= 1}
             className="rounded-3xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Previous
           </button>
           <button
-            onClick={() => setPage((current) => current + 1)}
+            onClick={() => {
+              setLoading(true);
+              setPage((current) => current + 1);
+            }}
             disabled={logs.length < 30}
             className="rounded-3xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
           >

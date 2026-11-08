@@ -12,6 +12,9 @@ interface SlideProduct {
   team: string;
   price: number;
   image: string;
+  salePrice?: number;
+  salePercentage?: number;
+  saleEventName?: string | null;
 }
 
 // Inject the keyframe once into the document head — avoids styled-jsx hydration mismatch
@@ -58,17 +61,17 @@ export default function HeroSlideshow({ products }: { products: SlideProduct[] }
   const currentImage = currentProduct?.image;
 
   const imageUrl = useMemo(() => {
-    if (!currentProduct) return "/placeholder-jersey.png";
+    if (!currentProduct) return "/placeholder-jersey.svg";
 
     const cachedUrl = resolvedImages[currentProduct.id];
     if (cachedUrl) return cachedUrl;
 
-    if (!currentImage) return "/placeholder-jersey.png";
+    if (!currentImage) return "/placeholder-jersey.svg";
     if (!shouldRequestSignedImageUrl(currentImage)) {
-      return normalizeProductImage(currentImage) || "/placeholder-jersey.png";
+      return normalizeProductImage(currentImage) || "/placeholder-jersey.svg";
     }
 
-    return "/placeholder-jersey.png";
+    return "/placeholder-jersey.svg";
   }, [currentProduct, currentImage, resolvedImages]);
 
   useEffect(() => {
@@ -82,13 +85,13 @@ export default function HeroSlideshow({ products }: { products: SlideProduct[] }
       try {
         const res = await fetch(`/api/images?key=${encodeURIComponent(currentImage)}`);
         const data = await res.json();
-        const resolvedUrl = data.url || "/placeholder-jersey.png";
+        const resolvedUrl = data.url || "/placeholder-jersey.svg";
         if (isMounted) {
           setResolvedImages((prev) => ({ ...prev, [currentProduct.id]: resolvedUrl }));
         }
       } catch {
         if (isMounted) {
-          setResolvedImages((prev) => ({ ...prev, [currentProduct.id]: "/placeholder-jersey.png" }));
+          setResolvedImages((prev) => ({ ...prev, [currentProduct.id]: "/placeholder-jersey.svg" }));
         }
       }
     };
@@ -110,7 +113,7 @@ export default function HeroSlideshow({ products }: { products: SlideProduct[] }
       void fetch(`/api/images?key=${encodeURIComponent(product.image)}`)
         .then(async (res) => {
           const data = await res.json();
-          const resolvedUrl = data.url || "/placeholder-jersey.png";
+          const resolvedUrl = data.url || "/placeholder-jersey.svg";
           setResolvedImages((prev) => ({ ...prev, [product.id]: resolvedUrl }));
         })
         .catch(() => undefined);
@@ -201,9 +204,21 @@ export default function HeroSlideshow({ products }: { products: SlideProduct[] }
         <div className="mt-4 flex items-end justify-between gap-4">
           <div className="min-w-0">
             <p className="text-base font-black text-white truncate">{product.name}</p>
-            <p className="text-sm font-bold text-slate-300 mt-0.5">
-              Ksh {product.price.toLocaleString()}
-            </p>
+            {product.salePrice !== undefined ? (
+              <>
+                <p className="text-sm font-black text-white mt-0.5">
+                  Ksh {product.salePrice.toLocaleString()}
+                </p>
+                <p className="text-xs font-bold text-slate-300 line-through">
+                  Ksh {product.price.toLocaleString()} · {product.salePercentage}% off
+                  {product.saleEventName ? ` · ${product.saleEventName}` : ""}
+                </p>
+              </>
+            ) : (
+              <p className="text-sm font-bold text-slate-300 mt-0.5">
+                Ksh {product.price.toLocaleString()}
+              </p>
+            )}
           </div>
 
           {total > 1 && (

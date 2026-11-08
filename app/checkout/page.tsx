@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useCart } from "@/src/context/CartContext";
+import type { CartItem } from "@/src/context/CartContext";
 import { useCheckout } from "@/src/hooks/useCheckout";
 import { Loader2, CheckCircle2, FileText, Smartphone, CreditCard, X, Plus, Minus } from "lucide-react";
 import { signIn, useSession } from "next-auth/react";
@@ -294,7 +295,21 @@ export default function ProductionCheckoutPage() {
                 setCouponMsg(null);
                 if (!coupon || coupon.trim().length===0) { setCouponMsg('Enter a discount code'); return; }
                 try {
-                  const res = await fetch('/api/discounts/validate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: coupon.trim(), cartTotal: subtotal + customisationTotal + shippingCost }) });
+                  const res = await fetch('/api/discounts/validate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      code: coupon.trim(),
+                      items: cart.map((item: CartItem) => ({
+                        productId: item.id,
+                        quantity: item.quantity,
+                        customizationCost:
+                          (item.competitionBadge && item.competitionBadge !== "NONE" ? 200 : 0) +
+                          (item.playerName ? 100 : 0) +
+                          (item.playerNumber ? 100 : 0),
+                      })),
+                    }),
+                  });
                   const data = await res.json();
                   if (!res.ok) { setCouponMsg(data.error || 'Invalid code'); setAppliedCoupon(null); return; }
                   setAppliedCoupon(data);

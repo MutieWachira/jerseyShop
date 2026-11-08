@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ['@prisma/client'],
   images: {
     formats: ['image/avif', 'image/webp'],
+    qualities: [75, 85],
     remotePatterns: [
       {
         protocol: 'https',

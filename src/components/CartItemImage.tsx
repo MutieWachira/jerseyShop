@@ -19,10 +19,10 @@ export default function CartItemImage({
   name: string;
 }) {
   const [imageUrl, setImageUrl] = useState<string>(() => {
-    if (!image) return "/placeholder-jersey.png";
+    if (!image) return "/placeholder-jersey.svg";
     // If the URL likely needs a signed request, fall back to placeholder until we resolve it.
-    if (shouldRequestSignedImageUrl(image)) return "/placeholder-jersey.png";
-    return normalizeProductImage(image) || "/placeholder-jersey.png";
+    if (shouldRequestSignedImageUrl(image)) return "/placeholder-jersey.svg";
+    return normalizeProductImage(image) || "/placeholder-jersey.svg";
   });
 
   useEffect(() => {

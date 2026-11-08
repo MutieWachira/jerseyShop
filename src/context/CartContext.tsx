@@ -122,6 +122,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         try {
           // 1. Load server cart
           const res  = await fetch("/api/cart");
+          if (!res.ok) {
+            throw new Error(`Failed to load cart (${res.status})`);
+          }
           const data = await res.json();
           const serverItems: CartItem[] = (data.items || []).map(mapDbItem);
 
@@ -142,7 +145,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
                 })),
               }),
             });
+            if (!mergeRes.ok) {
+              throw new Error(`Failed to merge guest cart (${mergeRes.status})`);
+            }
             const mergeData = await mergeRes.json();
+            if (!mergeData.success || !Array.isArray(mergeData.items)) {
+              throw new Error("Guest cart merge did not return the updated cart");
+            }
 
             // Use merged server cart, but preserve customisation from localStorage
             const mergedItems: CartItem[] = (mergeData.items || []).map((dbItem: any) => {
@@ -205,7 +214,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             if (existing) {
               return prev.map((i) =>
                 i.id === item.id && i.size === item.size && i.version === item.version
-                  ? { ...i, quantity: serverItem.quantity }
+                  ? { ...i, price: item.price, quantity: serverItem.quantity }
                   : i
               );
             }
@@ -225,7 +234,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       if (existing) {
         return prev.map((i) =>
           i.id === item.id && i.size === item.size && i.version === item.version
-            ? { ...i, quantity: i.quantity + item.quantity }
+            ? { ...i, price: item.price, quantity: i.quantity + item.quantity }
             : i
         );
       }

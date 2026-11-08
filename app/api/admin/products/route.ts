@@ -5,6 +5,16 @@ import { prisma } from "@/src/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { productPriceSchema, productVariantsSchema } from "@/src/lib/validators/product";
 
+function parseProductYear(value: unknown): { valid: boolean; value: number | null } {
+  if (value === undefined || value === null || value === "") {
+    return { valid: true, value: null };
+  }
+  const year = Number(value);
+  return Number.isInteger(year) && year >= 1900 && year <= 2100
+    ? { valid: true, value: year }
+    : { valid: false, value: null };
+}
+
 export async function GET() {
   try {
     const products = await prisma.product.findMany({
@@ -32,7 +42,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     // Destructure exactly what the frontend sends
-    const { name, description, price, image, team, categoryId, variants } = body;
+    const { name, description, price, year, image, team, categoryId, variants } = body;
 
     // 1. Validation - Ensure all required core fields exist
     if (!name || !description || !price || !image || !team || !categoryId) {
@@ -57,6 +67,10 @@ export async function POST(req: NextRequest) {
     if (!parsedVariants.success) {
       return NextResponse.json({ error: "Invalid product variants" }, { status: 400 });
     }
+    const parsedYear = parseProductYear(year);
+    if (!parsedYear.valid) {
+      return NextResponse.json({ error: "Jersey year must be a whole year between 1900 and 2100" }, { status: 400 });
+    }
 
     // 3. Create product with Nested Variants
     const product = await prisma.product.create({
@@ -65,6 +79,7 @@ export async function POST(req: NextRequest) {
         slug,
         description,
         price: parsedPrice.data,
+        year: parsedYear.value,
         image,
         team,
         categoryId,

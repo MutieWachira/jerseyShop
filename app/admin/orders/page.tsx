@@ -203,7 +203,7 @@ function OrderModal({
               {order.items.map((item) => (
                 <div key={item.id} className="flex items-center gap-4 rounded-2xl border border-slate-100 bg-white p-3">
                   <img
-                    src={item.product.image || "/placeholder-jersey.png"}
+                    src={item.product.image || "/placeholder-jersey.svg"}
                     alt={item.product.name}
                     className="h-14 w-14 rounded-xl object-cover border border-slate-100 bg-slate-50"
                   />

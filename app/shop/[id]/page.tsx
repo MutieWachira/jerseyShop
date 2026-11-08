@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/src/lib/prisma";
 import ProductDetailClient from "@/src/components/ProductDetailClient";
+import { getProductSales, withProductSales } from "@/src/lib/product-discounts";
 
 interface Props {
   params: Promise<{ id: string }>; // URL params are always strings
@@ -24,5 +25,8 @@ export default async function ProductDetailPage({ params }: Props) {
     notFound();
   }
 
-  return <ProductDetailClient product={product} />;
+  const sales = await getProductSales([product.id]);
+  const [productWithSale] = withProductSales([product], sales);
+
+  return <ProductDetailClient product={productWithSale} />;
 }

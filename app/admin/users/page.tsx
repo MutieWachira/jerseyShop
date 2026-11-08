@@ -288,7 +288,7 @@ function UserModal({
                           {order.items.map((item) => (
                             <div key={item.id} className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-1.5">
                               <img
-                                src={item.product.image || "/placeholder-jersey.png"}
+                                src={item.product.image || "/placeholder-jersey.svg"}
                                 alt={item.product.name}
                                 className="h-6 w-6 rounded-lg object-cover"
                               />
@@ -326,7 +326,7 @@ function UserModal({
                       <div key={review.id} className="rounded-2xl border border-slate-100 bg-white p-4">
                         <div className="flex items-center gap-3 mb-2">
                           <img
-                            src={review.product.image || "/placeholder-jersey.png"}
+                            src={review.product.image || "/placeholder-jersey.svg"}
                             alt={review.product.name}
                             className="h-10 w-10 rounded-xl object-cover border border-slate-100"
                           />

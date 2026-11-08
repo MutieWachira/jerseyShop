@@ -23,7 +23,7 @@ export function shouldRequestSignedImageUrl(image: string | null | undefined) {
   return true;
 }
 
-export async function resolveProductImageUrl(image: string | null | undefined, fallback = "/placeholder-jersey.png") {
+export async function resolveProductImageUrl(image: string | null | undefined, fallback = "/placeholder-jersey.svg") {
   if (!image) return fallback;
 
   const trimmedImage = image.trim();

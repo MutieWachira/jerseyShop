@@ -1,20 +1,11 @@
 import ProductCard from "@/src/components/ProductCard";
 import { prisma } from "@/src/lib/prisma";
+import { getProductSales, withProductSales } from "@/src/lib/product-discounts";
+import ShopPromotionsSlider, { type ShopPromotion } from "@/src/components/ShopPromotionsSlider";
+import type { Prisma } from "@prisma/client";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
-
-// Define the Prisma return type to include the category
-type ProductWithCategory = {
-  id: number;
-  name: string;
-  team: string;
-  price: number;
-  description: string;
-  image: string;
-  categoryId: string;
-  category: { name: string; slug: string };
-};
 
 type Props = {
   searchParams: Promise<{
@@ -38,11 +29,18 @@ export default async function ShopPage({ searchParams }: Props) {
 
   const pageSize = 8;
 
-  let orderBy: any = { createdAt: "desc" };
-  if (sort === "price-low") orderBy = { price: "asc" };
-  if (sort === "price-high") orderBy = { price: "desc" };
+  let orderBy: Prisma.ProductOrderByWithRelationInput[];
+  if (sort === "price-low") orderBy = [{ price: "asc" }];
+  else if (sort === "price-high") orderBy = [{ price: "desc" }];
+  else if (sort === "year-old") {
+    orderBy = [{ year: { sort: "asc", nulls: "last" } }, { name: "asc" }];
+  } else if (sort === "year-new") {
+    orderBy = [{ year: { sort: "desc", nulls: "last" } }, { name: "asc" }];
+  } else {
+    orderBy = [{ createdAt: "desc" }];
+  }
 
-  const where: any = {
+  const where: Prisma.ProductWhereInput = {
     ...(teamFilter && { team: teamFilter }),
     ...(searchQuery && {
       name: { contains: searchQuery, mode: "insensitive" },
@@ -52,7 +50,9 @@ export default async function ShopPage({ searchParams }: Props) {
     }),
   };
 
-  const [products, totalProducts] = await Promise.all([
+  const now = new Date();
+  const upcomingCutoff = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+  const [products, totalProducts, discounts] = await Promise.all([
     prisma.product.findMany({
       where,
       skip: (page - 1) * pageSize,
@@ -61,16 +61,73 @@ export default async function ShopPage({ searchParams }: Props) {
       include: { category: true },
     }),
     prisma.product.count({ where }),
+    prisma.discount.findMany({
+      where: {
+        active: true,
+        AND: [
+          {
+            OR: [
+              { startsAt: null },
+              { startsAt: { lte: now } },
+              { startsAt: { gt: now, lte: upcomingCutoff } },
+            ],
+          },
+          { OR: [{ expiresAt: null }, { expiresAt: { gte: now } }] },
+        ],
+      },
+      orderBy: [{ startsAt: { sort: "asc", nulls: "first" } }, { createdAt: "desc" }],
+      select: {
+        id: true,
+        code: true,
+        percentage: true,
+        eventName: true,
+        autoApply: true,
+        maxUses: true,
+        usedCount: true,
+        startsAt: true,
+        expiresAt: true,
+        products: {
+          where: { product: { active: true } },
+          select: { productId: true },
+        },
+      },
+    }),
   ]);
 
   const totalPages = Math.ceil(totalProducts / pageSize);
+  const sales = await getProductSales(products.map((product) => product.id));
+  const productsWithSales = withProductSales(products, sales);
+  const promotions: ShopPromotion[] = discounts
+    .filter((discount) =>
+      (discount.maxUses === null || discount.usedCount < discount.maxUses) &&
+      (!discount.startsAt || !discount.expiresAt || discount.expiresAt >= discount.startsAt) &&
+      (!discount.autoApply || (
+        discount.startsAt !== null &&
+        discount.expiresAt !== null &&
+        discount.products.length > 0
+      ))
+    )
+    .map((discount) => ({
+      id: discount.id,
+      code: discount.code,
+      percentage: discount.percentage,
+      eventName: discount.eventName,
+      autoApply: discount.autoApply,
+      startsAt: discount.startsAt?.toISOString() ?? null,
+      expiresAt: discount.expiresAt?.toISOString() ?? null,
+      isUpcoming: discount.startsAt !== null && discount.startsAt > now,
+      daysUntilStart: discount.startsAt
+        ? Math.ceil((discount.startsAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000))
+        : null,
+      productIds: discount.products.map(({ productId }) => productId),
+    }));
 
   // Improvement: Get the display name from the first product if filtering by category
   const displayCategoryName = categorySlug && products.length > 0 
     ? products[0].category.name 
     : categorySlug?.replace(/-/g, " ");
 
-  const buildQuery = (params: Record<string, any>) => {
+  const buildQuery = (params: Record<string, string | number | undefined>) => {
     const query = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
       if (value) query.set(key, String(value));
@@ -79,8 +136,9 @@ export default async function ShopPage({ searchParams }: Props) {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-6xl">
+    <main className="min-h-screen bg-slate-50">
+      <ShopPromotionsSlider promotions={promotions} />
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
         {/* HEADER */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
@@ -121,6 +179,8 @@ export default async function ShopPage({ searchParams }: Props) {
               { label: "Newest", val: "newest" },
               { label: "Price ↑", val: "price-low" },
               { label: "Price ↓", val: "price-high" },
+              { label: "Year: Oldest", val: "year-old" },
+              { label: "Year: Newest", val: "year-new" },
             ].map((s) => (
               <Link
                 key={s.val}
@@ -170,7 +230,7 @@ export default async function ShopPage({ searchParams }: Props) {
         {/* PRODUCTS */}
         {products.length > 0 ? (
           <div className="text-slate-900 mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {products.map((product) => (
+            {productsWithSales.map((product) => (
               <ProductCard
                 key={product.id}
                 {...product}

@@ -16,6 +16,8 @@ function RegisterPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "";
+  const safeCallbackUrl =
+    callbackUrl.startsWith("/") && !callbackUrl.startsWith("//") ? callbackUrl : "";
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault();
@@ -39,8 +41,7 @@ function RegisterPageContent() {
         });
 
         if (loginResult?.ok) {
-          const safeCallbackUrl = callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/shop";
-          router.push(safeCallbackUrl);
+          router.push(safeCallbackUrl || "/shop");
         } else {
           setError("Signup succeeded but login failed");
         }
@@ -130,7 +131,7 @@ function RegisterPageContent() {
         <div className="space-y-3">
           <button
             type="button"
-            onClick={() => signIn("google", { callbackUrl: callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/shop" })}
+            onClick={() => signIn("google", { callbackUrl: safeCallbackUrl || "/shop" })}
             className="text-slate-600 w-full flex items-center justify-center gap-3 border border-slate-300 rounded-xl py-3 hover:bg-slate-50 transition"
           >
             Continue with Google
@@ -138,7 +139,7 @@ function RegisterPageContent() {
 
           <button
             type="button"
-            onClick={() => signIn("apple", { callbackUrl: callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/shop" })}
+            onClick={() => signIn("apple", { callbackUrl: safeCallbackUrl || "/shop" })}
             className="w-full flex items-center justify-center gap-3 bg-black text-white rounded-xl py-3 hover:opacity-90 transition"
           >
             Continue with Apple

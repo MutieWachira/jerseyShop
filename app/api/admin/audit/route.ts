@@ -15,12 +15,17 @@ export async function GET(req: NextRequest) {
   const resource = url.searchParams.get("resource") ?? undefined;
   const event = url.searchParams.get("event") ?? undefined;
 
-  const data = await queryAuditLogs({
-    page,
-    limit,
-    resourceType: resource ?? undefined,
-    action: event ?? undefined,
-  });
+  try {
+    const data = await queryAuditLogs({
+      page,
+      limit,
+      resourceType: resource ?? undefined,
+      action: event ?? undefined,
+    });
 
-  return NextResponse.json(data);
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error("[api/admin/audit] GET error", error);
+    return NextResponse.json({ error: "Unable to load audit logs." }, { status: 500 });
+  }
 }

@@ -116,24 +116,26 @@ model Category {
 //////////////////////////////////////////////////////
 
 model Product {
-  id             Int              @id @default(autoincrement())
+  id             Int               @id @default(autoincrement())
   name           String
-  slug           String           @unique
+  slug           String            @unique
   description    String
   price          Int // Stored as a whole Ksh amount
+  year           Int?
   image          String
   team           String
   seoTitle       String?
   seoDescription String?
-  active         Boolean          @default(true)
-  featured       Boolean          @default(false)
+  active         Boolean           @default(true)
+  featured       Boolean           @default(false)
   categoryId     String
-  category       Category         @relation(fields: [categoryId], references: [id])
+  category       Category          @relation(fields: [categoryId], references: [id])
   variants       ProductVariant[]
+  discounts      DiscountProduct[]
   reviews        Review[]
   orderItems     OrderItem[]
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
   @@index([team])
   @@index([categoryId])
@@ -141,6 +143,7 @@ model Product {
   @@index([slug])
   @@index([active])
   @@index([featured])
+  @@index([year])
 }
 
 //////////////////////////////////////////////////////
@@ -185,21 +188,36 @@ model CartItem {
 //////////////////////////////////////////////////////
 
 model Discount {
-  id              String    @id @default(cuid())
-  code            String    @unique
+  id              String            @id @default(cuid())
+  code            String?           @unique
   percentage      Int
+  eventName       String?
+  autoApply       Boolean           @default(false)
   minimumOrder    Int?
   maximumDiscount Int?
   maxUses         Int?
-  usedCount       Int       @default(0)
+  usedCount       Int               @default(0)
+  startsAt        DateTime?
   expiresAt       DateTime?
-  active          Boolean   @default(true)
-  createdAt       DateTime  @default(now())
+  active          Boolean           @default(true)
+  createdAt       DateTime          @default(now())
   orders          Order[]
+  products        DiscountProduct[]
 
   @@index([code])
   @@index([active])
+  @@index([autoApply, startsAt])
   @@index([expiresAt])
+}
+
+model DiscountProduct {
+  discountId String
+  productId  Int
+  discount   Discount @relation(fields: [discountId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([discountId, productId])
+  @@index([productId])
 }
 
 //////////////////////////////////////////////////////
@@ -303,7 +321,7 @@ model Receipt {
   shippingFee Int
   tax         Int
 
-  total       Int
+  total Int
 
   pdfUrl    String?
   emailed   Boolean   @default(false)
@@ -421,15 +439,15 @@ model Setting {
 }
 
 model AuditLog {
-  id           String    @id @default(cuid())
+  id           String     @id @default(cuid())
   actorId      String?
-  actorType    String?   // e.g. "USER", "SYSTEM", "ADMIN"
+  actorType    String? // e.g. "USER", "SYSTEM", "ADMIN"
   action       String
-  resourceType String?   // e.g. "Order", "Payment", "Withdrawal"
+  resourceType String? // e.g. "Order", "Payment", "Withdrawal"
   resourceId   String?
   level        AuditLevel @default(INFO)
   metadata     Json?
-  createdAt    DateTime  @default(now())
+  createdAt    DateTime   @default(now())
 
   @@index([actorId])
   @@index([resourceType, resourceId])

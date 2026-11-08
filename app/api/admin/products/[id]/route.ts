@@ -46,6 +46,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       team,
       description,
       price,
+      year,
       image,
       categoryId,
       categoryName,
@@ -58,6 +59,20 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     if (team !== undefined) data.team = String(team);
     if (description !== undefined) data.description = String(description);
     if (image !== undefined) data.image = String(image);
+    if (year !== undefined) {
+      if (year === null || year === "") {
+        data.year = null;
+      } else {
+        const parsedYear = Number(year);
+        if (!Number.isInteger(parsedYear) || parsedYear < 1900 || parsedYear > 2100) {
+          return NextResponse.json(
+            { error: "Jersey year must be a whole year between 1900 and 2100" },
+            { status: 400 }
+          );
+        }
+        data.year = parsedYear;
+      }
+    }
 
     if (price !== undefined) {
       const parsedPrice = productPriceSchema.safeParse(Number(price));

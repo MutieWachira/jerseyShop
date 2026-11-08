@@ -8,9 +8,9 @@ import { normalizeProductImage, shouldRequestSignedImageUrl } from "@/src/lib/im
 
 function ProductImageCell({ image, alt }: { image?: string | null; alt: string }) {
   const [src, setSrc] = useState(() => {
-    if (!image) return "/placeholder-jersey.png";
-    if (shouldRequestSignedImageUrl(image)) return "/placeholder-jersey.png";
-    return normalizeProductImage(image) || "/placeholder-jersey.png";
+    if (!image) return "/placeholder-jersey.svg";
+    if (shouldRequestSignedImageUrl(image)) return "/placeholder-jersey.svg";
+    return normalizeProductImage(image) || "/placeholder-jersey.svg";
   });
 
   useEffect(() => {
@@ -18,16 +18,16 @@ function ProductImageCell({ image, alt }: { image?: string | null; alt: string }
 
     const resolveImage = async () => {
       if (!image || !shouldRequestSignedImageUrl(image)) {
-        if (isMounted) setSrc(normalizeProductImage(image) || "/placeholder-jersey.png");
+        if (isMounted) setSrc(normalizeProductImage(image) || "/placeholder-jersey.svg");
         return;
       }
 
       try {
         const res = await fetch(`/api/images?key=${encodeURIComponent(image)}`);
         const data = await res.json();
-        if (isMounted) setSrc(data.url || "/placeholder-jersey.png");
+        if (isMounted) setSrc(data.url || "/placeholder-jersey.svg");
       } catch {
-        if (isMounted) setSrc("/placeholder-jersey.png");
+        if (isMounted) setSrc("/placeholder-jersey.svg");
       }
     };
 

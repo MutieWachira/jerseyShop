@@ -1,6 +1,5 @@
 import { prisma } from "./prisma";
-
-type AuditLevel = "INFO" | "WARN" | "ERROR";
+import { AuditLevel as PrismaAuditLevel, type Prisma } from "@prisma/client";
 
 export async function auditLog(params: {
   actorId?: string | null;
@@ -8,8 +7,8 @@ export async function auditLog(params: {
   action: string;
   resourceType?: string | null;
   resourceId?: string | null;
-  level?: AuditLevel;
-  metadata?: any;
+  level?: PrismaAuditLevel;
+  metadata?: Prisma.InputJsonValue;
 }) {
   const { actorId, actorType, action, resourceType, resourceId, level = "INFO", metadata } = params;
   try {
@@ -21,7 +20,7 @@ export async function auditLog(params: {
         action,
         resourceType: resourceType ?? undefined,
         resourceId: resourceId ?? undefined,
-        level: level as any,
+        level,
         metadata: metadata ?? undefined,
       },
     });
@@ -33,7 +32,6 @@ export async function auditLog(params: {
 export default auditLog;
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/src/lib/auth";
-import type { Prisma } from "@prisma/client";
 
 export interface AuditLogPayload {
   event: string;
@@ -58,19 +56,22 @@ export async function createAuditLog(req: Request, payload: AuditLogPayload) {
   try {
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id;
-    const userAgent = req.headers.get("user-agent") ?? undefined;
+    const userAgent = req.headers.get("user-agent");
     const ip = getIpFromRequest(req);
 
     return await prisma.auditLog.create({
       data: {
         actorId: userId ?? undefined,
-        actorType: userId ? "USER" : undefined,
+        actorType: userId ? (session.user.role === "ADMIN" ? "ADMIN" : "USER") : undefined,
         action: payload.event,
         resourceType: payload.resource,
         resourceId: undefined,
-        metadata: payload.metadata ? (payload.metadata as Prisma.JsonObject) : {},
-        // attach request metadata
-        // store IP and userAgent inside metadata object for backward compatibility
+        metadata: {
+          ...payload.metadata,
+          description: payload.description,
+          ip,
+          userAgent,
+        } as Prisma.InputJsonObject,
       },
     });
   } catch (error) {

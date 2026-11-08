@@ -2,9 +2,46 @@
 
 import { useSession } from "next-auth/react";
 import { redirect } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useWishlist } from "@/src/context/WishlistContext";
+import { normalizeProductImage, resolveProductImageUrl } from "@/src/lib/image";
+
+type WishlistItem = {
+  id: string | number;
+  image?: string;
+  name: string;
+  price: number;
+};
+
+const subscribeToHydration = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
+
+function WishlistProductImage({ item }: { item: WishlistItem }) {
+  const [imageUrl, setImageUrl] = useState(
+    () => normalizeProductImage(item.image) || "/placeholder-jersey.svg"
+  );
+
+  useEffect(() => {
+    let active = true;
+    resolveProductImageUrl(item.image).then((resolvedUrl) => {
+      if (active) setImageUrl(resolvedUrl);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [item.image]);
+
+  return (
+    <img
+      src={imageUrl}
+      alt={item.name}
+      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+    />
+  );
+}
 
 export default function WishlistPage() {
   // ✅ 1. Standard NextAuth protection logic
@@ -16,12 +53,11 @@ export default function WishlistPage() {
   });
 
   const { wishlist, toggleWishlist } = useWishlist();
-  const [mounted, setMounted] = useState(false);
-
-  // ✅ 2. Prevent Hydration Mismatch (Wait for client-side mount)
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useSyncExternalStore(
+    subscribeToHydration,
+    getClientSnapshot,
+    getServerSnapshot
+  );
 
   // ✅ 3. Handle Loading State (Prevents the "Empty Wishlist" flash while checking session)
   if (status === "loading" || !mounted) {
@@ -74,18 +110,14 @@ export default function WishlistPage() {
         </header>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-          {wishlist.map((item: { id: string; image: string; name: string; price: number }) => (
+          {wishlist.map((item: WishlistItem) => (
             <div 
               key={item.id} 
               className="relative group rounded-[2.5rem] border border-slate-200 bg-white p-5 shadow-sm transition-all duration-300 hover:shadow-xl hover:shadow-slate-200/50 hover:-translate-y-1"
             >
               <Link href={`/shop/${item.id}`}>
                 <div className="relative aspect-[4/5] rounded-[1.8rem] overflow-hidden bg-slate-50">
-                  <img 
-                    src={item.image} 
-                    alt={item.name} 
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                  />
+                  <WishlistProductImage item={item} />
                   <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
               </Link>

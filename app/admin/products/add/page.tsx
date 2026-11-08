@@ -18,6 +18,7 @@ export default function NewProduct() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
+  const [year, setYear] = useState("");
   const [team, setTeam] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [variants, setVariants] = useState<{
@@ -114,6 +115,7 @@ export default function NewProduct() {
           name,
           description,
           price: enteredPrice,
+          year: year ? Number(year) : null,
           team,
           categoryId,
           image: imagePath,
@@ -186,6 +188,22 @@ export default function NewProduct() {
                   placeholder="e.g. Real Madrid"
                   className="w-full border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-slate-900 outline-none transition"
                   onChange={(e) => setTeam(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-slate-700 mb-1">
+                  Jersey Year
+                </label>
+                <input
+                  type="number"
+                  min={1900}
+                  max={2100}
+                  step={1}
+                  value={year}
+                  onChange={(e) => setYear(e.target.value)}
+                  placeholder="e.g. 2024"
+                  className="w-full border border-slate-200 rounded-xl p-3 focus:ring-2 focus:ring-slate-900 outline-none transition"
                 />
               </div>
 
