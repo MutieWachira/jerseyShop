@@ -140,7 +140,8 @@ export default function EditProduct() {
 
   // Submit update
   const updateProduct = async () => {
-    if (!name || !price || !categoryId || !description || !variants.some((variant) => variant.enabled)) {
+    const enteredPrice = Number(price);
+    if (!name || !price || !Number.isSafeInteger(enteredPrice) || enteredPrice <= 0 || !categoryId || !description || !variants.some((variant) => variant.enabled)) {
       return alert("Please fill required fields and enable at least one variant.");
     }
 
@@ -176,7 +177,7 @@ export default function EditProduct() {
         body: JSON.stringify({
           name,
           description,
-          price: parseFloat(price),
+          price: enteredPrice,
           team,
           categoryId,
           image: imagePath,
@@ -278,6 +279,8 @@ export default function EditProduct() {
               <label className="text-sm font-bold">Price</label>
               <input
                 type="number"
+                min={1}
+                step={1}
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 className="border border-slate-200 rounded-xl p-3 w-full"

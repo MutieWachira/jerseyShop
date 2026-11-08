@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
+import { Prisma } from "@prisma/client";
+import { productPriceSchema, productVariantsSchema } from "@/src/lib/validators/product";
 
 export async function GET() {
   try {
@@ -47,7 +49,14 @@ export async function POST(req: NextRequest) {
     }
 
     const slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-    const priceInt = Math.round(Number(price) * 100);
+    const parsedPrice = productPriceSchema.safeParse(Number(price));
+    if (!parsedPrice.success) {
+      return NextResponse.json({ error: "Price must be a positive whole number of Ksh" }, { status: 400 });
+    }
+    const parsedVariants = productVariantsSchema.safeParse(variants ?? []);
+    if (!parsedVariants.success) {
+      return NextResponse.json({ error: "Invalid product variants" }, { status: 400 });
+    }
 
     // 3. Create product with Nested Variants
     const product = await prisma.product.create({
@@ -55,16 +64,12 @@ export async function POST(req: NextRequest) {
         name,
         slug,
         description,
-        price: priceInt,
+        price: parsedPrice.data,
         image,
         team,
         categoryId,
-        variants: Array.isArray(variants) && variants.length > 0 ? {
-          create: variants.map((v: any) => ({
-            size: v.size,
-            version: v.version || "FAN",
-            stock: Number(v.stock) || 0,
-          })),
+        variants: parsedVariants.data.length > 0 ? {
+          create: parsedVariants.data,
         } : undefined,
       },
       include: {
@@ -73,13 +78,14 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(product, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST products error:", error);
 
-    if (error?.code === "P2002") {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return NextResponse.json({ error: "Product slug or unique field already exists" }, { status: 409 });
     }
 
-    return NextResponse.json({ error: "Internal Server Error", details: error?.message ?? "" }, { status: 500 });
+    const details = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: "Internal Server Error", details }, { status: 500 });
   }
 }

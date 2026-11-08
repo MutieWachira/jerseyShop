@@ -72,7 +72,8 @@ export default function NewProduct() {
 
   const createProduct = async () => {
     // Added description to validation since your API marks it as required
-    if (!name || !price || !categoryId || !description || !imageFile || !variants.some((variant) => variant.enabled)) {
+    const enteredPrice = Number(price);
+    if (!name || !price || !Number.isSafeInteger(enteredPrice) || enteredPrice <= 0 || !categoryId || !description || !imageFile || !variants.some((variant) => variant.enabled)) {
       return alert("Please fill in all required fields, enable at least one variant, and upload an image.");
     }
 
@@ -112,7 +113,7 @@ export default function NewProduct() {
         body: JSON.stringify({
           name,
           description,
-          price: parseFloat(price),
+          price: enteredPrice,
           team,
           categoryId,
           image: imagePath,
@@ -215,10 +216,12 @@ export default function NewProduct() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-slate-700 mb-1">
-                    Price ($) *
+                    Price (Ksh) *
                   </label>
                   <input
                     type="number"
+                    min={1}
+                    step={1}
                     className="w-full border border-slate-200 rounded-xl p-3"
                     onChange={(e) => setPrice(e.target.value)}
                   />

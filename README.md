@@ -34,3 +34,13 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Releases and versioning
+
+Releases are managed by GitHub Actions with Release Please. Use Conventional
+Commit messages (for example, `fix: correct product pricing` or
+`feat: add category filters`) in commits merged to `main`. Release Please opens
+or updates a release pull request with the corresponding package version and
+changelog; merging that pull request creates the GitHub release and version tag.
+Breaking changes marked with `!` or a `BREAKING CHANGE:` footer trigger a major
+version bump. The current package version is also displayed in the site footer.

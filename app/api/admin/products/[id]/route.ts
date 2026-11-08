@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/src/lib/auth";
 import { prisma } from "@/src/lib/prisma";
+import { productPriceSchema } from "@/src/lib/validators/product";
 import { Size, KitVersion } from "@prisma/client";
 import type { Prisma } from "@prisma/client";
 
@@ -59,11 +60,11 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     if (image !== undefined) data.image = String(image);
 
     if (price !== undefined) {
-      const resolvedPrice = Number(price);
-      if (!Number.isFinite(resolvedPrice) || resolvedPrice <= 0) {
-        return NextResponse.json({ error: "Invalid price" }, { status: 400 });
+      const parsedPrice = productPriceSchema.safeParse(Number(price));
+      if (!parsedPrice.success) {
+        return NextResponse.json({ error: "Price must be a positive whole number of Ksh" }, { status: 400 });
       }
-      data.price = resolvedPrice;
+      data.price = parsedPrice.data;
     }
 
     // Support categoryId (direct connect) or categoryName/category (upsert by name)

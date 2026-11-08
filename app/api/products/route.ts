@@ -1,5 +1,6 @@
 import { prisma } from "@/src/lib/prisma";
 import { NextResponse } from "next/server";
+import { productPriceSchema } from "@/src/lib/validators/product";
 
 export async function GET() {
     try {
@@ -31,9 +32,9 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Missing required product fields" }, { status: 400 });
         }
 
-        const resolvedPrice = Number(price);
-        if (!Number.isFinite(resolvedPrice) || resolvedPrice <= 0) {
-            return NextResponse.json({ error: "Invalid price value" }, { status: 400 });
+        const parsedPrice = productPriceSchema.safeParse(Number(price));
+        if (!parsedPrice.success) {
+            return NextResponse.json({ error: "Price must be a positive whole number of Ksh" }, { status: 400 });
         }
 
         const product = await prisma.product.create({
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
                 name: String(name),
                 team: String(team),
                 description: String(description),
-                price: resolvedPrice,
+                price: parsedPrice.data,
                 image: String(image),
                 slug: slugify(String(name)),
                 category: { connect: { id: String(categoryId) } },

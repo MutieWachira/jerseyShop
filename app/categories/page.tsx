@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { prisma } from "@/src/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export default async function CategoriesPage() {
   // Improvement: Include product count so users see which categories have stock
   const categories = await prisma.category.findMany({

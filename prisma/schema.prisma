@@ -120,7 +120,7 @@ model Product {
   name           String
   slug           String           @unique
   description    String
-  price          Int // Stored in minor currency units (cents/Ksh whole integer format)
+  price          Int // Stored as a whole Ksh amount
   image          String
   team           String
   seoTitle       String?
